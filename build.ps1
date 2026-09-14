@@ -39,5 +39,6 @@ Copy-Item -LiteralPath (Join-Path $ProjectDir 'COPILOT_SETUP.md') -Destination (
 Copy-Item -LiteralPath (Join-Path $ProjectDir 'README.md') -Destination (Join-Path $DistPath 'README.md') -Force
 Copy-Item -LiteralPath (Join-Path $ProjectDir 'NEXT_VERSION.md') -Destination (Join-Path $DistPath 'NEXT_VERSION.md') -Force
 Copy-Item -LiteralPath (Join-Path $ProjectDir 'CHAT_NOTES_SETUP.md') -Destination (Join-Path $DistPath 'CHAT_NOTES_SETUP.md') -Force
+Copy-Item -LiteralPath (Join-Path $ProjectDir 'RELEASE_NOTES-v4.4.md') -Destination (Join-Path $DistPath 'RELEASE_NOTES-v4.4.md') -Force
 
 Write-Host "Built: $(Join-Path $DistPath 'TeamsCaptionNotes.exe')"

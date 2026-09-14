@@ -1,4 +1,40 @@
-# Version 3 and feature backlog
+# Version history and feature backlog
+
+## Version 4.4
+
+- Manual **Check for updates…** from the tray reads the latest public GitHub
+  release for `ChrGio/teams-caption-notes`. Installation requires confirmation;
+  it is not a scheduled or unattended updater.
+- Installation verifies the release's GitHub-provided SHA-256 digest, file size,
+  and Windows x64 executable format. It is blocked during a capturing/uncertain
+  meeting, while the notes window is open, or while summaries/sign-in are active.
+- A separate local helper replaces only the current executable path after a
+  clean shutdown, retains a backup, and restarts the app. Transcripts/settings
+  remain in place. No forced process termination or administrator elevation is
+  used. Update files and diagnostics remain in the executable's `.updates`
+  folder. Immediate launch failures trigger a rollback attempt, not a guarantee
+  that all later runtime failures can be detected or repaired.
+- **Start with Windows (at sign-in)** now defaults on for packaged launches and
+  remembers an explicit tray-menu opt-out in `tray-settings.json`. First v4.4
+  launches with v4.3 preferences also default on because those preferences lack
+  the new startup choice. Python source launches retain manual startup setup.
+
+See [the v4.4 release notes](RELEASE_NOTES-v4.4.md) and
+[update instructions](README.md#updating-the-portable-app). Local testing does not
+establish that a managed organization's application policy will allow the
+unsigned executable or its updater. No real update installation, reboot, or
+startup registration on a user's machine is implied by automated tests.
+
+## Versions 4.2 and 4.3
+
+- v4.2: saved quiet-notification preference and retry/backoff for returned Windows
+  UI Automation errors while preserving the current transcript.
+- v4.3: continuity tracking for the same known meeting window when minimized or
+  temporarily unreadable, with amber status and clearer visibility logs.
+- These changes do not recover captions that Teams stops exposing, detect every
+  possible call-state transition, or fix Windows calls that hang indefinitely.
+
+## Earlier planning record
 
 **Version 4 update:** chat/date selection, daily chat exports, notes search, project labels, manual combined summary inputs, lossless long-input splitting, caption journals, and journal recovery are now implemented. See [CHAT_NOTES_SETUP.md](CHAT_NOTES_SETUP.md). The version 3 planning record below is historical. Scheduled chat collection, automatic browser-summary retrieval, managed-device deployment validation, and automatic Teams caption settings remain outside the implemented features.
 
@@ -6,7 +42,7 @@ Updated September 11, 2026 from the user's meeting-derived feature list. The und
 
 ## Included in version 3
 
-- Optional startup when the current user signs into Windows after reboot. Enable or disable it from the tray. An existing app registration for another copy is replaced only when the user enables this copy. Windows policy or Startup settings may prevent execution.
+- Optional startup when the current user signs into Windows after reboot. In version 3 it was enabled or disabled manually from the tray, and an existing registration for another copy was replaced only when the user enabled this copy. Version 4.4 changes the packaged-app default as described above. Windows policy or Startup settings may prevent execution.
 - Copy latest for ChatGPT: copies the full transcript and structured summary instructions, then opens the ChatGPT website. The user pastes and sends it. Existing Copilot workflows remain available.
 - Clipboard owner fix for copying from a windowless tray application. A failed copy is reported without stopping the watcher.
 
@@ -44,6 +80,6 @@ Visible-chat scraping is not a complete-history solution: Teams may only expose 
 - Startup support: test on representative managed Windows machines and document IT-approved installation/signing procedures.
 - Caption reliability: further real-meeting validation of built-in and detached caption sources, speaker changes, and final caption revisions.
 
-## Validation
+## Historical version 3 validation
 
-31 automated tests passed, including startup path quoting, current-user registry targeting, disabled/missing entries, ChatGPT handoff, and clipboard failure handling. Registry writes and browser launches were mocked in those tests. A real reboot, a managed coworker machine, and a live meeting were not exercised in this build.
+For version 3, 31 automated tests passed, including startup path quoting, current-user registry targeting, disabled/missing entries, ChatGPT handoff, and clipboard failure handling. Registry writes and browser launches were mocked in those tests. A real reboot, a managed coworker machine, and a live meeting were not exercised in that historical build. This is not the current version's test count.

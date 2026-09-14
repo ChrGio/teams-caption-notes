@@ -1,4 +1,4 @@
-"""Optional startup at sign-in for the current Windows user."""
+"""Per-user startup registration with a persisted, reversible default for EXEs."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import subprocess
 import sys
 import winreg
 from pathlib import Path
+
+import tray_settings
 
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -52,3 +54,44 @@ def set_enabled(enabled: bool) -> None:
                 winreg.DeleteValue(key, VALUE_NAME)
         except FileNotFoundError:
             pass
+
+
+def set_preference(enabled: bool, preferences_path: Path) -> dict:
+    """Persist an explicit choice and apply it to this user's Run registration.
+
+    Save first so a denied registry operation cannot lose an explicit opt-out.
+    OSError/ValueError deliberately propagate for the tray to report without
+    terminating capture. Unrelated tray preferences are preserved.
+    """
+    if not isinstance(enabled, bool):
+        raise ValueError("startup_enabled must be true or false")
+    preferences = tray_settings.load_strict(preferences_path)
+    if enabled:
+        startup_command()  # Validate the path before persisting the new choice.
+    preferences["startup_enabled"] = enabled
+    tray_settings.save(preferences_path, preferences)
+    set_enabled(enabled)
+    return preferences
+
+
+def apply_default(preferences_path: Path) -> bool:
+    """Apply a packaged app's saved startup choice; first runs default to on.
+
+    Developer/source launches never register themselves automatically. Existing
+    valid legacy preferences gain the new default; an explicit False is never
+    replaced with True. A True choice follows an upgraded or relocated EXE.
+    Malformed/unreadable preferences and denied registry writes raise a
+    controlled OSError/ValueError instead of silently resetting the choice.
+    """
+    if not getattr(sys, "frozen", False):
+        return False
+    preferences = tray_settings.load_strict(preferences_path)
+    enabled = preferences.get("startup_enabled", True)
+    desired_command = startup_command() if enabled else None
+    if "startup_enabled" not in preferences:
+        preferences["startup_enabled"] = enabled
+        tray_settings.save(preferences_path, preferences)
+    current_command = registered_command()
+    if current_command != desired_command:
+        set_enabled(enabled)
+    return enabled

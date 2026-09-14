@@ -1,5 +1,11 @@
 # Teams Caption Notes
 
+Version 4.4 adds **Check for updates…** to the tray menu and makes **Start with
+Windows (at sign-in)** the default for the packaged executable. Update checks are
+manual, installation requires confirmation, and saved startup opt-outs are
+respected. See [Updating the portable app](#updating-the-portable-app) and the
+[v4.4 release notes](RELEASE_NOTES-v4.4.md).
+
 Version 4.3 fixes false meeting splits when a previously detected meeting window
 is minimized, compact, or temporarily exposes no meeting controls. It tracks that
 specific window (handle, process, and title), including a native-window check when
@@ -53,7 +59,14 @@ It does **not** record microphone or system audio or click Teams controls. Live 
 
 ## Install
 
-From PowerShell:
+For the standalone Windows x64 app, download the executable from the project's
+[GitHub releases](https://github.com/ChrGio/teams-caption-notes/releases), put it in
+a permanent folder where you can write files, then run it. Python is not required.
+Version 4.4 registers this copy to start when the current user signs into Windows;
+uncheck **Start with Windows (at sign-in)** in the tray menu to opt out. This is
+not a Windows service and does not run before sign-in.
+
+To run from Python source instead, use PowerShell:
 
 ```powershell
 cd "C:\Apps\teams-caption-notes"
@@ -87,7 +100,21 @@ To save one meeting and exit automatically after you leave:
 
 ## Standalone system-tray app
 
-Version 3 adds **Start with Windows (at sign-in)** and **Copy latest for ChatGPT** to the tray menu. Startup is optional and initially off. Enable it after moving the executable to its permanent folder. It applies to the current Windows user; turning it off removes this app's startup entry. If you move the executable, enable startup again from the new copy. Windows Settings > Apps > Startup may separately disable startup, and organizational policy can block it. The app reports a setup error without interrupting capture.
+**Start with Windows (at sign-in)** applies only to the current Windows user.
+Starting with v4.4, the packaged app enables it on first launch and stores the
+choice in `tray-settings.json` beside the executable. Turning it off in the tray
+removes this app's startup entry and remembers the opt-out across restarts and
+in-place updates. Existing v4.3 settings do not contain this new preference, so
+the first v4.4 launch also defaults it to on; uncheck the option if unwanted.
+Keep the executable and its settings together in a permanent writable folder.
+When the saved choice is on, launching an upgraded or relocated copy updates
+the startup path to that copy. Launching from Python source does not enable
+startup automatically.
+
+Windows Settings > Apps > Startup may separately disable execution, and
+organizational policy can block registration or launch. The app reports setup
+failures without interrupting capture. It does not request administrator access
+or change Windows security policies.
 
 **Copy latest for ChatGPT** copies the complete latest transcript with the summary prompt and opens ChatGPT in your default browser. Review, paste, and send it there. It needs no API key or Entra IDs. For a transcript too large to paste, use **Open transcripts** and attach the file manually in your AI tool. This command does not fetch or automatically save the generated summary.
 
@@ -96,6 +123,45 @@ For caption display tips, screen sharing, and the chat-aggregation investigation
 `TeamsCaptionNotes.exe` runs in the Windows notification area and does not require Python on the destination computer. Its icon is blue while waiting, green while capturing, amber while meeting visibility is uncertain, gray when stopped, and red after an error or while retrying a failed scan. Right-click it to start or stop watching, open transcripts, view the diagnostic log, or exit. Double-clicking the icon opens the transcript folder.
 
 If a transcript is open in an application that locks the file, capture continues in memory and retries automatically. If the file remains locked when the meeting ends, the app writes a timestamped `-recovered-` copy beside it, falling back to `%LOCALAPPDATA%\Teams Caption Notes\transcripts` if necessary.
+
+### Updating the portable app
+
+1. Right-click the tray icon and choose **Check for updates…**. The check reads
+   the latest non-prerelease release from the fixed public repository
+   [ChrGio/teams-caption-notes](https://github.com/ChrGio/teams-caption-notes).
+   There are no scheduled update checks or unattended installations.
+2. Review the offered version and explicitly confirm installation. Finish any
+   meeting, close the app's notes window, and let summaries or sign-in finish
+   first. Installation is refused while a meeting is capturing or its visibility
+   is uncertain, while the notes window is open, or while these background tasks
+   are active.
+3. The app downloads the Windows x64 executable to `.updates` beside the running
+   executable and verifies its size, Windows x64 format, and GitHub-provided
+   SHA-256 digest. A missing digest or failed check prevents installation.
+4. After a clean stop of the idle watcher, a separate helper waits for the old
+   app to exit, backs up that executable, replaces only that same executable
+   path, and starts it again. Transcripts, settings, logs, and other files are
+   not replaced. If launching the replacement fails immediately, the helper
+   attempts to restore and restart the previous executable.
+
+The check/download sends no transcript content or Microsoft sign-in credentials
+to GitHub. GitHub still receives the ordinary network request, including the
+requester's IP address. The app accepts assets only from the configured public
+repository over approved HTTPS GitHub download hosts; it does not install an
+arbitrary download link supplied in release notes.
+
+The update helper does not forcibly terminate applications or elevate to
+administrator. If the executable remains locked, permissions prevent replacement,
+or the watcher cannot stop cleanly, the update fails instead of forcing a change.
+Update diagnostics and the previous executable backup are retained under
+`.updates` for troubleshooting. A successful restart request is not a full
+health check of the new version.
+
+The executable is unsigned. A checksum detects a mismatched download; it is not
+a publisher signature or a security review. SmartScreen, antivirus, or a managed
+device policy may require IT approval or allowlisting. The updater does not
+bypass these protections. Versions older than v4.4 need a manual download first
+to gain this update menu; Python source installations are updated manually.
 
 ### Optional Microsoft 365 Copilot summaries
 
@@ -133,5 +199,5 @@ That fallback can capture unrelated text displayed near the bottom of the Teams 
 
 - Tell participants and follow your organization's policy before transcribing or summarizing a meeting.
 - Files remain local unless your sync software, output location, or later AI workflow uploads them.
-- UI Automation can only read captions Teams exposes to Windows. Keep the meeting window open; it may be behind other windows, but do not minimize it.
+- UI Automation can only read captions Teams exposes to Windows. Keep the meeting window open and not minimized for the best chance of capturing text. v4.3 and later can preserve the session while minimized, but cannot recover captions that Teams does not expose.
 - Speaker labels depend on what the current Teams build exposes. Unlabelled caption text is still retained.

@@ -21,9 +21,11 @@ import copilot_summary
 import windows_startup
 import notes_library
 import tray_settings
+import app_update
 
 
-APP_NAME = "Teams Caption Notes v4.3"
+APP_VERSION = "4.4"
+APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"
 BASIC_COPILOT_URL = "https://m365.cloud.microsoft/chat"
@@ -119,6 +121,13 @@ class TrayApp:
         self._stop_event = threading.Event()
         self._worker: threading.Thread | None = None
         self._summary_lock = threading.Lock()
+        self._update_lock = threading.Lock()
+        self._installing = False
+        self._exiting = threading.Event()
+        self._meeting_active = False
+        self._update_capture_started = threading.Event()
+        self._update_status = "Updates: not checked"
+        self._sign_in_thread = None
         self._notes_process = None
         self._state = "stopped"
         self._status = "Watcher stopped"
@@ -129,13 +138,13 @@ class TrayApp:
             menu=pystray.Menu(
                 pystray.MenuItem(lambda _: self._status, None, enabled=False),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem("Start watcher", self.start_watcher, enabled=lambda _: not self.is_running),
+                pystray.MenuItem("Start watcher", self.start_watcher, enabled=lambda _: not self.is_running and not self._installing),
                 pystray.MenuItem("Stop watcher", self.stop_watcher, enabled=lambda _: self.is_running),
                 pystray.MenuItem("Start with Windows (at sign-in)", self.toggle_startup, checked=self.startup_checked),
                 pystray.MenuItem("Hide tray pop-up notifications", self.toggle_popups, checked=self.popups_hidden),
                 pystray.MenuItem("Open transcripts", self.open_transcripts, default=True),
                 pystray.MenuItem("Open log", self.open_log),
-                pystray.MenuItem("Chats and notes…", self.open_notes_window),
+                pystray.MenuItem("Chats and notes…", self.open_notes_window, enabled=lambda _: not self._installing),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(lambda _: self.copilot_menu_status, None, enabled=False),
                 pystray.MenuItem("Configure Copilot…", self.configure_copilot),
@@ -143,6 +152,9 @@ class TrayApp:
                 pystray.MenuItem("Summarize latest transcript", self.summarize_latest),
                 pystray.MenuItem("Copy latest for basic Copilot Chat", self.open_basic_copilot),
                 pystray.MenuItem("Copy latest for ChatGPT", self.open_chatgpt),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem(lambda _: self._update_status, None, enabled=False),
+                pystray.MenuItem("Check for updates…", self.check_for_updates, enabled=lambda _: not self._update_lock.locked()),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit", self.exit_app),
             ),
@@ -181,8 +193,12 @@ class TrayApp:
 
     def toggle_startup(self, icon=None, item=None) -> None:
         try:
-            enabled = not windows_startup.is_enabled()
-            windows_startup.set_enabled(enabled)
+            with self._lock:
+                enabled = not windows_startup.is_enabled()
+                try:
+                    windows_startup.set_preference(enabled, self._preferences_path)
+                finally:
+                    self._preferences = tray_settings.load(self._preferences_path)
             self.icon.update_menu()
             self.notify(
                 "Windows startup updated",
@@ -216,6 +232,13 @@ class TrayApp:
 
     def capture_event(self, event: str, message: str) -> None:
         logging.info("%s: %s", event, message)
+        # Keep session ownership separate from tray color: recovery and Copilot
+        # status messages must not make an active meeting appear safe to update.
+        if event in ("meeting_started", "meeting_ended"):
+            with self._lock:
+                self._meeting_active = event == "meeting_started"
+                if event == "meeting_started" and self._installing:
+                    self._update_capture_started.set()
         if event == "meeting_started":
             self.set_status("recording", "Meeting detected — capturing captions")
             self.notify("Caption capture started", message)
@@ -256,11 +279,12 @@ class TrayApp:
             logging.exception("Unable to display tray notification")
 
     def start_watcher(self, icon=None, item=None) -> None:
-        if self.is_running:
-            return
-        self._stop_event = threading.Event()
-        self._worker = threading.Thread(target=self._watcher_main, name="teams-caption-watcher", daemon=False)
-        self._worker.start()
+        with self._lock:
+            if self.is_running or self._installing or self._exiting.is_set():
+                return
+            self._stop_event = threading.Event()
+            self._worker = threading.Thread(target=self._watcher_main, name="teams-caption-watcher", daemon=False)
+            self._worker.start()
         self.set_status("watching", "Starting Teams watcher")
 
     def _watcher_main(self) -> None:
@@ -297,14 +321,21 @@ class TrayApp:
 
     def open_notes_window(self, icon=None, item=None) -> None:
         try:
-            if self._notes_process is not None and self._notes_process.poll() is None:
+            with self._lock:
+                if self._installing or self._exiting.is_set():
+                    return
+                already_open = self._notes_process is not None and self._notes_process.poll() is None
+                if not already_open:
+                    args = [sys.executable]
+                    if not getattr(sys, "frozen", False):
+                        args.append(str(Path(__file__).resolve()))
+                    args.append("--notes-window")
+                    environment = os.environ.copy()
+                    environment["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+                    self._notes_process = subprocess.Popen(args, cwd=str(capture.application_dir()), env=environment,
+                                                           creationflags=subprocess.CREATE_NO_WINDOW)
+            if already_open:
                 self.notify("Chats and notes", "The notes window is already open. Select it from the taskbar.")
-                return
-            args = [sys.executable]
-            if not getattr(sys, "frozen", False):
-                args.append(str(Path(__file__).resolve()))
-            args.append("--notes-window")
-            self._notes_process = subprocess.Popen(args, cwd=str(capture.application_dir()), creationflags=subprocess.CREATE_NO_WINDOW)
         except OSError as exc:
             self.notify("Could not open notes", str(exc))
 
@@ -317,7 +348,11 @@ class TrayApp:
             self.show_copilot_error(exc)
 
     def sign_in_copilot(self, icon=None, item=None) -> None:
-        threading.Thread(target=self._sign_in_worker, name="copilot-sign-in", daemon=True).start()
+        with self._lock:
+            if self._installing or self._exiting.is_set() or (self._sign_in_thread and self._sign_in_thread.is_alive()):
+                return
+            self._sign_in_thread = threading.Thread(target=self._sign_in_worker, name="copilot-sign-in", daemon=True)
+            self._sign_in_thread.start()
 
     def _sign_in_worker(self) -> None:
         try:
@@ -382,18 +417,26 @@ class TrayApp:
             self.notify(f"Could not open {service}", str(exc))
 
     def _start_summary(self, transcript_path: Path, meeting_title: str) -> None:
-        if self._summary_lock.locked():
+        with self._lock:
+            if self._installing or self._exiting.is_set():
+                return
+            acquired = self._summary_lock.acquire(blocking=False)
+        if not acquired:
             self.notify("Copilot is busy", "Another transcript summary is already running.")
             return
-        threading.Thread(
-            target=self._summary_worker,
-            args=(transcript_path, meeting_title),
-            name="copilot-summary",
-            daemon=True,
-        ).start()
+        try:
+            threading.Thread(
+                target=self._summary_worker,
+                args=(transcript_path, meeting_title),
+                name="copilot-summary",
+                daemon=True,
+            ).start()
+        except Exception:
+            self._summary_lock.release()
+            raise
 
     def _summary_worker(self, transcript_path: Path, meeting_title: str) -> None:
-        with self._summary_lock:
+        try:
             try:
                 self.set_status("recording", "Copilot is summarizing the transcript")
                 output = copilot_summary.summarize_transcript(transcript_path, meeting_title, COPILOT_CONFIG_PATH)
@@ -402,17 +445,142 @@ class TrayApp:
                 self.notify("Copilot summary saved", str(output))
             except Exception as exc:
                 self.show_copilot_error(exc)
+        finally:
+            self._summary_lock.release()
 
     def show_copilot_error(self, exc: Exception) -> None:
         logging.exception("Copilot operation failed", exc_info=(type(exc), exc, exc.__traceback__))
         self.set_status("error", f"Copilot error: {exc}")
         self.notify("Copilot summary failed", f"{exc}\nThe transcript remains saved locally.")
 
+    def _update_message(self, message: str, *, confirm: bool = False) -> bool:
+        # Responses to a requested action still appear when balloons are hidden.
+        if self._exiting.is_set():
+            return False
+        flags = (0x04 | 0x20 | 0x100) if confirm else 0x40  # Yes/No, default No
+        return ctypes.windll.user32.MessageBoxW(None, message, f"{APP_NAME} — Updates", flags) == 6
+
+    def _set_update_status(self, message: str) -> None:
+        with self._lock:
+            self._update_status = message
+        try:
+            self.icon.update_menu()
+        except Exception:
+            pass
+
+    def _installation_blocker(self) -> str | None:
+        """Called holding _lock to exclude competing tray operations."""
+        if self._meeting_active or self._update_capture_started.is_set():
+            return "A meeting is being captured (or its last save is still pending). Finish the meeting and try again."
+        if self._notes_process is not None and self._notes_process.poll() is None:
+            return "Close the Chats and notes window, then try again."
+        if self._summary_lock.locked():
+            return "Wait for the current Copilot summary to finish, then try again."
+        if self._sign_in_thread is not None and self._sign_in_thread.is_alive():
+            return "Finish Microsoft sign-in, then try again."
+        if self._exiting.is_set():
+            return "The application is exiting."
+        return None
+
+    def check_for_updates(self, icon=None, item=None) -> None:
+        if self._exiting.is_set() or not self._update_lock.acquire(blocking=False):
+            return
+        try:
+            threading.Thread(target=self._check_update_worker, name="app-update", daemon=True).start()
+        except Exception:
+            self._update_lock.release()
+            raise
+
+    def _check_update_worker(self) -> None:
+        restart_watcher = False
+        helper_started = False
+        try:
+            self._set_update_status("Updates: checking GitHub…")
+            release = app_update.check_for_update(APP_VERSION)
+            if self._exiting.is_set():
+                return
+            if release is None:
+                self._set_update_status(f"Updates: v{APP_VERSION} is up to date")
+                self._update_message(f"You are running v{APP_VERSION}. No newer stable release is available.")
+                return
+            self._set_update_status(f"Updates: v{release.version} available")
+            if not getattr(sys, "frozen", False):
+                self._update_message(f"Version {release.version} is available. In-app installation works in the packaged EXE only.\n\n{release.html_url}")
+                return
+            with self._lock:
+                self._update_capture_started.clear()
+                blocker = self._installation_blocker()
+            if blocker:
+                self._update_message(f"Version {release.version} is available.\n\n{blocker}")
+                return
+            if not self._update_message(
+                f"Install Teams Caption Notes v{release.version}?\n\n"
+                "The EXE will download from ChrGio/teams-caption-notes on GitHub and its SHA-256 checksum will be verified. "
+                "The app will close and restart after installation. Your transcripts and settings stay in this folder.\n\n"
+                "The app is unsigned; your organization's Windows security policies still apply.", confirm=True
+            ):
+                return
+            with self._lock:
+                blocker = self._installation_blocker()
+                if not blocker:
+                    self._installing = True
+            if blocker:
+                raise app_update.UpdateError(blocker)
+            self._set_update_status(f"Updates: downloading v{release.version}…")
+            install_path = Path(sys.executable).resolve()
+            candidate = app_update.download_update(release, install_path)
+            with self._lock:
+                blocker = self._installation_blocker()
+                if not blocker:
+                    restart_watcher = self.is_running
+                    self._stop_event.set()
+            if blocker:
+                raise app_update.UpdateError(blocker)
+            self._set_update_status("Updates: waiting for watcher to save and stop…")
+            if self._worker is not None:
+                self._worker.join(timeout=30)
+            if self.is_running:
+                raise app_update.UpdateError("The watcher has not finished saving. Nothing was installed. Wait for it to stop, then try again.")
+            with self._lock:
+                blocker = self._installation_blocker()
+            if blocker:
+                raise app_update.UpdateError(blocker)
+            self._set_update_status("Updates: preparing installer…")
+            manifest = app_update.prepare_install(candidate, install_path, release)
+            if self._exiting.is_set():
+                return
+            # Returns only after the helper validates its plan and is ready.
+            app_update.launch_installer(manifest)
+            helper_started = True
+            logging.info("Update helper ready for v%s; exiting for installation", release.version)
+            self.exit_app()
+        except Exception as exc:
+            logging.exception("App update did not complete")
+            self._set_update_status("Updates: not installed — see log")
+            self._update_message(f"The update was not installed. Your current EXE and notes have not been replaced.\n\n{exc}\n\nSee {LOG_PATH.name} for details.")
+        finally:
+            with self._lock:
+                self._installing = False
+            if restart_watcher and not helper_started and not self._exiting.is_set() and not self.is_running:
+                self.start_watcher()
+            self._update_lock.release()
+            try:
+                self.icon.update_menu()
+            except Exception:
+                pass
+
     def exit_app(self, icon=None, item=None) -> None:
+        self._exiting.set()
         self._stop_event.set()
         self.icon.stop()
 
     def run(self) -> None:
+        try:
+            windows_startup.apply_default(self._preferences_path)
+        except (OSError, ValueError):
+            logging.exception("Could not apply Windows startup preference; use the tray startup option or contact IT")
+        finally:
+            self._preferences = tray_settings.load(self._preferences_path)
         self.start_watcher()
         self.icon.run()
         if self._worker is not None:
@@ -440,6 +608,10 @@ def acquire_single_instance():
 
 
 def main() -> int:
+    if "--apply-update" in sys.argv:
+        if len(sys.argv) != 3 or sys.argv[1] != "--apply-update":
+            return 1
+        return app_update.apply_update(Path(sys.argv[2]))
     if "--notes-window" in sys.argv:
         logging.basicConfig(filename=capture.application_dir() / "notes-window.log", level=logging.INFO,
                             format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8")
@@ -452,7 +624,7 @@ def main() -> int:
         encoding="utf-8",
     )
     logging.getLogger("comtypes").setLevel(logging.WARNING)
-    logging.info("Application starting from %s", capture.application_dir())
+    logging.info("%s starting from %s", APP_NAME, capture.application_dir())
     instance_lock = acquire_single_instance()
     if instance_lock is None:
         return 0

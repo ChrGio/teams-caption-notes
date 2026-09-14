@@ -1,4 +1,6 @@
 .venv/
+.updates/
+updater-smoke-*/
 __pycache__/
 build/
 build-*/
