@@ -1,5 +1,31 @@
 # Version history and feature backlog
 
+## Version 4.5
+
+- Opt-in caption setup from the app: enable the current meeting's live captions
+  or the supported Teams Accessibility preference **Always show captions in my
+  calls and meetings**. Opening setup alone does not change settings; an action
+  and confirmation are required.
+- **Set up Teams captions…** remains available in the tray. Setup opens once on
+  the first manual launch of a new packaged installation without existing tray
+  settings, never at Windows sign-in. Existing installations/upgrades and Python
+  source launches do not get a forced setup window. The setup status
+  tracks whether the window was opened, not whether Teams captions are enabled.
+- Read the recognized control's state, leave an already-on preference unchanged,
+  and verify the resulting state. Use only named UI Automation controls in a
+  verified Teams process; no coordinates, blind shortcuts, or private API calls.
+- Missing, disabled, ambiguous, or unrecognized controls produce manual guidance
+  rather than guessed clicks. Speaker-identification, profanity, language,
+  transcription, and recording settings are outside the helper's scope.
+- This does not add per-meeting menu automation to the watcher. Teams' own
+  persistent setting is responsible for showing captions in future meetings.
+- Retains v4.4 startup and checked, user-confirmed updates. See the
+  [v4.5 release notes](RELEASE_NOTES-v4.5.md).
+
+Caption setup remains best-effort across Teams releases, languages, and tenant
+policies. Real-client UI Automation verification is still needed; mocked control
+tests and executable packaging checks do not establish live Teams compatibility.
+
 ## Version 4.4
 
 - Manual **Check for updates…** from the tray reads the latest public GitHub
@@ -36,7 +62,7 @@ startup registration on a user's machine is implied by automated tests.
 
 ## Earlier planning record
 
-**Version 4 update:** chat/date selection, daily chat exports, notes search, project labels, manual combined summary inputs, lossless long-input splitting, caption journals, and journal recovery are now implemented. See [CHAT_NOTES_SETUP.md](CHAT_NOTES_SETUP.md). The version 3 planning record below is historical. Scheduled chat collection, automatic browser-summary retrieval, managed-device deployment validation, and automatic Teams caption settings remain outside the implemented features.
+**Version 4 update:** chat/date selection, daily chat exports, notes search, project labels, manual combined summary inputs, lossless long-input splitting, caption journals, and journal recovery are now implemented. See [CHAT_NOTES_SETUP.md](CHAT_NOTES_SETUP.md). The version 3 planning record below is historical. Scheduled chat collection, automatic browser-summary retrieval, and managed-device deployment validation remain outside the implemented features. Version 4.5 adds explicit, user-confirmed caption setup; unattended per-meeting caption changes are not implemented.
 
 Updated September 11, 2026 from the user's meeting-derived feature list. The underlying meeting transcript was not provided for this planning update; suggestions are not treated as confirmed commitments.
 
@@ -54,7 +80,11 @@ The ChatGPT workflow uses the normal website and a user-submitted prompt as desc
 
 Teams owns its caption controls. In a meeting, open Caption settings > Caption styles to change font size, height, and placement. The pop-out viewer can also be resized. See [Microsoft's caption customization instructions](https://support.microsoft.com/en-us/teams/meetings/use-live-captions-in-microsoft-teams-meetings) and [pop-out caption guide](https://support.microsoft.com/en-us/accessibility/teams/use-pop-out-captions-in-microsoft-teams-meetings).
 
-If your Teams version exposes an always-show-captions setting under Accessibility, enable it there. Availability needs checking in the user's work/school Teams version; the setting is documented for Teams Free, which is not proof of availability in every organizational build. The recorder still requires Teams captions to be enabled.
+If your Teams version exposes **Always show captions in my calls and meetings**
+under Accessibility, enable it there, or use the v4.5 setup helper and confirm
+the requested change. The helper must verify the actual control and its state;
+the label appearing in one client does not prove availability in every
+organizational build. The recorder still requires Teams captions to be enabled.
 
 For a less cluttered presentation, share the intended application window or use a separate display for Teams and its caption viewer. Check the sharing preview. The recorder cannot guarantee that visible captions are excluded when sharing the entire screen. Keep the caption source open and not minimized so Windows accessibility can expose its text.
 
@@ -79,6 +109,9 @@ Visible-chat scraping is not a complete-history solution: Teams may only expose 
 - Project knowledge: optional project labels and a searchable index across meeting notes, then explicitly selected cross-meeting summaries.
 - Startup support: test on representative managed Windows machines and document IT-approved installation/signing procedures.
 - Caption reliability: further real-meeting validation of built-in and detached caption sources, speaker changes, and final caption revisions.
+- Caption setup: real-client testing across managed Teams versions, settings
+  layouts, and languages; keep the fallback instructions when strict control
+  verification cannot succeed. No silent configuration changes or policy bypass.
 
 ## Historical version 3 validation
 

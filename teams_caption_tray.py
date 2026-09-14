@@ -24,7 +24,7 @@ import tray_settings
 import app_update
 
 
-APP_VERSION = "4.4"
+APP_VERSION = "4.5"
 APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"
@@ -117,6 +117,7 @@ class TrayApp:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._preferences_path = capture.application_dir() / "tray-settings.json"
+        self._new_install = not self._preferences_path.exists()
         self._preferences = tray_settings.load(self._preferences_path)
         self._stop_event = threading.Event()
         self._worker: threading.Thread | None = None
@@ -129,6 +130,7 @@ class TrayApp:
         self._update_status = "Updates: not checked"
         self._sign_in_thread = None
         self._notes_process = None
+        self._caption_setup_process = None
         self._state = "stopped"
         self._status = "Watcher stopped"
         self.icon = pystray.Icon(
@@ -142,6 +144,8 @@ class TrayApp:
                 pystray.MenuItem("Stop watcher", self.stop_watcher, enabled=lambda _: self.is_running),
                 pystray.MenuItem("Start with Windows (at sign-in)", self.toggle_startup, checked=self.startup_checked),
                 pystray.MenuItem("Hide tray pop-up notifications", self.toggle_popups, checked=self.popups_hidden),
+                pystray.MenuItem(lambda _: self.caption_setup_status, None, enabled=False),
+                pystray.MenuItem("Set up Teams captions…", self.open_caption_setup, enabled=lambda _: not self._installing),
                 pystray.MenuItem("Open transcripts", self.open_transcripts, default=True),
                 pystray.MenuItem("Open log", self.open_log),
                 pystray.MenuItem("Chats and notes…", self.open_notes_window, enabled=lambda _: not self._installing),
@@ -339,6 +343,50 @@ class TrayApp:
         except OSError as exc:
             self.notify("Could not open notes", str(exc))
 
+    @property
+    def caption_setup_status(self) -> str:
+        if self._preferences.get("caption_setup_seen") is True:
+            return "Teams captions: setup available in menu"
+        return "Teams captions: setup recommended"
+
+    def open_caption_setup(self, icon=None, item=None) -> None:
+        """Open a separate, opt-in UI; opening it never changes Teams settings."""
+        try:
+            with self._lock:
+                if self._installing or self._exiting.is_set():
+                    return
+                already_open = self._caption_setup_process is not None and self._caption_setup_process.poll() is None
+                if not already_open:
+                    args = [sys.executable]
+                    if not getattr(sys, "frozen", False):
+                        args.append(str(Path(__file__).resolve()))
+                    args.append("--caption-setup")
+                    environment = os.environ.copy()
+                    environment["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+                    self._caption_setup_process = subprocess.Popen(
+                        args, cwd=str(capture.application_dir()), env=environment,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+                    try:
+                        # This tracks onboarding display, NOT whether the user's
+                        # Teams setting was successfully enabled or stayed on.
+                        tray_settings.save(self._preferences_path, {"caption_setup_seen": True})
+                        self._preferences = tray_settings.load(self._preferences_path)
+                    except (OSError, ValueError):
+                        logging.exception("Could not remember caption setup display")
+            if already_open:
+                self.notify("Teams caption setup", "The setup window is already open. Select it from the taskbar.")
+            self.icon.update_menu()
+        except Exception as exc:
+            logging.exception("Could not open caption setup")
+            self.notify("Could not open caption setup", f"{exc}\nSee {LOG_PATH.name} for details.")
+
+    def _offer_first_run_setup(self) -> None:
+        if (getattr(sys, "frozen", False) and self._new_install
+                and "--startup" not in sys.argv
+                and self._preferences.get("caption_setup_seen") is not True):
+            self.open_caption_setup()
+
     def configure_copilot(self, icon=None, item=None) -> None:
         try:
             copilot_summary.ensure_config(COPILOT_CONFIG_PATH)
@@ -474,6 +522,8 @@ class TrayApp:
             return "A meeting is being captured (or its last save is still pending). Finish the meeting and try again."
         if self._notes_process is not None and self._notes_process.poll() is None:
             return "Close the Chats and notes window, then try again."
+        if self._caption_setup_process is not None and self._caption_setup_process.poll() is None:
+            return "Close the Teams caption setup window, then try again."
         if self._summary_lock.locked():
             return "Wait for the current Copilot summary to finish, then try again."
         if self._sign_in_thread is not None and self._sign_in_thread.is_alive():
@@ -581,6 +631,7 @@ class TrayApp:
             logging.exception("Could not apply Windows startup preference; use the tray startup option or contact IT")
         finally:
             self._preferences = tray_settings.load(self._preferences_path)
+        self._offer_first_run_setup()
         self.start_watcher()
         self.icon.run()
         if self._worker is not None:
@@ -612,6 +663,13 @@ def main() -> int:
         if len(sys.argv) != 3 or sys.argv[1] != "--apply-update":
             return 1
         return app_update.apply_update(Path(sys.argv[2]))
+    if "--caption-setup" in sys.argv:
+        if len(sys.argv) != 2 or sys.argv[1] != "--caption-setup":
+            return 1
+        logging.basicConfig(filename=capture.application_dir() / "caption-setup.log", level=logging.INFO,
+                            format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8")
+        from caption_setup_window import main as caption_setup_main
+        return caption_setup_main()
     if "--notes-window" in sys.argv:
         logging.basicConfig(filename=capture.application_dir() / "notes-window.log", level=logging.INFO,
                             format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8")

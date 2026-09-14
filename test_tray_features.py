@@ -15,7 +15,7 @@ class StartupTests(unittest.TestCase):
         with patch.object(windows_startup.sys, "frozen", True, create=True), patch.object(
             windows_startup.sys, "executable", r"C:\Apps\Meeting Notes\TeamsCaptionNotes.exe"
         ):
-            self.assertEqual(windows_startup.startup_command(), '"C:\\Apps\\Meeting Notes\\TeamsCaptionNotes.exe"')
+            self.assertEqual(windows_startup.startup_command(), '"C:\\Apps\\Meeting Notes\\TeamsCaptionNotes.exe" --startup')
 
     def test_enable_writes_only_current_user_app_value(self):
         with patch.object(windows_startup.winreg, "CreateKeyEx") as create, patch.object(

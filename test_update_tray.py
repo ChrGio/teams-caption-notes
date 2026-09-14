@@ -259,7 +259,9 @@ class TrayUpdateTests(unittest.TestCase):
         def apply(path):
             tray_settings.save(path, {"startup_enabled": False, "hide_popups": False})
             raise PermissionError("registry denied")
-        with patch("teams_caption_tray.windows_startup.apply_default", side_effect=apply) as startup:
+        with patch("teams_caption_tray.windows_startup.apply_default", side_effect=apply) as startup, patch.object(
+            self.app, "_offer_first_run_setup"
+        ):
             self.app.run()
         startup.assert_called_once_with(self.app._preferences_path)
         self.app.start_watcher.assert_called_once_with()

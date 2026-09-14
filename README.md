@@ -1,5 +1,12 @@
 # Teams Caption Notes
 
+Version 4.5 adds an **opt-in Teams caption setup window**. It can help enable
+captions for the current meeting or set Teams' **Always show captions in my
+calls and meetings** preference when the installed client exposes those controls.
+Opening setup does not change Teams; each change requires a button click and
+confirmation. See [First-time caption setup](#first-time-caption-setup) and the
+[v4.5 release notes](RELEASE_NOTES-v4.5.md).
+
 Version 4.4 adds **Check for updates…** to the tray menu and makes **Start with
 Windows (at sign-in)** the default for the packaged executable. Update checks are
 manual, installation requires confirmation, and saved startup opt-outs are
@@ -30,6 +37,8 @@ The choice is saved beside the executable in `tray-settings.json` and survives
 restarts. Enabling it also dismisses the currently displayed app tray notification.
 It does not change Teams notifications, automatically detect screen sharing, or
 hide dialogs in windows you deliberately open (such as sign-in/setup/errors).
+The v4.5 welcome/setup window is a one-time first manual launch dialog for a new
+installation, not a capture-start balloon; it never opens at Windows sign-in.
 
 UI Automation COM failures while scanning windows are retried with a 2–30 second
 backoff. The tray turns red while retrying. The active transcript is preserved and
@@ -55,7 +64,11 @@ Both captions shown inside the meeting and the detached **Captions — Pinned wi
 
 When the detached viewer is open, it is treated as the authoritative caption source. This prevents lagging copies from other Teams windows from being repeated under the wrong speaker. Rolling caption updates are merged, substantial verbatim replays are removed, and sentence-like text such as “Hi, Jordan.” is not accepted as a participant name.
 
-It does **not** record microphone or system audio or click Teams controls. Live captions must already be turned on in Teams. Transcripts stay local unless a user explicitly sends one through an optional Copilot workflow.
+It does **not** record microphone or system audio. The watcher reads captions
+without clicking Teams controls; the separate v4.5 setup helper can operate only
+the supported caption controls after explicit confirmation. Captions must be
+enabled before text can be captured. Transcripts stay local unless a user
+explicitly sends them through an optional AI workflow or their folder is synced.
 
 ## Install
 
@@ -83,6 +96,9 @@ py -m venv .venv
 ```
 
 2. Join a Teams meeting and turn on **More > Language and speech > Show live captions**.
+
+The standalone tray app also offers the optional caption setup helper described
+below. Python command-line capture does not change Teams settings automatically.
 
 The watcher starts a new timestamped transcript when Teams' meeting controls appear. After the tracked meeting windows disappear, it waits through an eight-second confirmation period before finalizing and waiting for the next meeting. A minimized or temporarily unreadable tracked meeting window keeps the same transcript open; a stale post-call window can delay finalization until closed. The meeting name is included in the filename, such as `Team_standup-20260908-103000.md`, and in the document heading. It prints a short status every 15 seconds. Press `Ctrl+C` to stop the watcher.
 
@@ -124,6 +140,60 @@ For caption display tips, screen sharing, and the chat-aggregation investigation
 
 If a transcript is open in an application that locks the file, capture continues in memory and retries automatically. If the file remains locked when the meeting ends, the app writes a timestamped `-recovered-` copy beside it, falling back to `%LOCALAPPDATA%\Teams Caption Notes\transcripts` if necessary.
 
+### First-time caption setup
+
+Choose **Set up Teams captions…** from the tray when you want help turning
+captions on. For a brand-new packaged installation with no `tray-settings.json`,
+this window also opens once on the first manual launch. It does not open at
+Windows sign-in. Existing installations/upgrades are not forced through setup;
+use the tray command whenever you want it. Source launches do not show this
+welcome window automatically.
+
+The tray status **Teams captions: setup recommended** means the setup window has
+not yet been opened. After it opens, the status changes to **Teams captions:
+setup available in menu**. Neither status diagnoses whether Teams captions are
+on or off. Opening the window is remembered, but does not enable captions or
+claim they were verified. Keep Teams open, signed in, and visible while using setup. Choose
+the action you want and review its confirmation before the helper changes
+anything:
+
+- **Future meetings:** enable Teams' Accessibility preference **Always show
+  captions in my calls and meetings**, if that exact supported setting is
+  available. The helper leaves an already-on setting unchanged and reads back
+  its state before reporting success.
+- **Current meeting:** after joining a meeting, enable **Show live captions** in
+  the meeting's **More actions > Language and speech** menu. An already-enabled
+  caption control is left alone. A successful control change is not proof that
+  speech has already appeared in the transcript.
+
+This is a user-initiated setup tool, not another process that repeatedly opens
+menus on every call. Teams itself handles future meetings when its persistent
+preference is on. You can also enable the preference manually in Teams under
+**Settings > Accessibility**, or use **More actions > Language and speech > Show
+live captions** during a meeting. Microsoft documents the
+[in-meeting caption controls](https://support.microsoft.com/en-us/teams/meetings/use-live-captions-in-microsoft-teams-meetings)
+and describes [keeping captions on for future meetings](https://www.microsoft.com/en-us/microsoft-teams/accessibility-closed-captions-transcriptions).
+
+The helper uses named Windows accessibility controls belonging to the Teams
+process, not screen coordinates, blind keyboard shortcuts, or an undocumented
+Microsoft Graph setting. If the intended control is missing, disabled,
+unreadable, or ambiguous, it stops and provides manual steps. It does not guess
+from a quiet meeting or the absence of new caption text. Client updates and
+language differences can prevent recognition; a UI Automation error must not
+cause unrelated controls to be selected.
+
+Setup does not change speaker-identification, profanity-filter, or language
+preferences and does not start Teams recording or transcription. It cannot
+override an organization's policy disabling captions. Run setup at a convenient
+time: Teams menus/settings may become visible, including to anyone seeing a
+shared screen. The app's quiet tray-notification setting does not hide Teams UI.
+Tell participants and follow organizational policy before saving caption text.
+
+The setup commands are best-effort. Automated tests and packaging checks do not
+replace validation against a real installed Teams client. A confirmed on/off
+state still does not guarantee that Teams will expose every caption while
+minimized, off-screen, or disconnected.
+
 ### Updating the portable app
 
 1. Right-click the tray icon and choose **Check for updates…**. The check reads
@@ -131,10 +201,10 @@ If a transcript is open in an application that locks the file, capture continues
    [ChrGio/teams-caption-notes](https://github.com/ChrGio/teams-caption-notes).
    There are no scheduled update checks or unattended installations.
 2. Review the offered version and explicitly confirm installation. Finish any
-   meeting, close the app's notes window, and let summaries or sign-in finish
-   first. Installation is refused while a meeting is capturing or its visibility
-   is uncertain, while the notes window is open, or while these background tasks
-   are active.
+   meeting, close the app's notes and caption setup windows, and let summaries or
+   sign-in finish first. Installation is refused while a meeting is capturing or
+   its visibility is uncertain, while either of those windows is open, or while
+   these background tasks are active.
 3. The app downloads the Windows x64 executable to `.updates` beside the running
    executable and verifies its size, Windows x64 format, and GitHub-provided
    SHA-256 digest. A missing digest or failed check prevents installation.

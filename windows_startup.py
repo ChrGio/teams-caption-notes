@@ -16,12 +16,12 @@ VALUE_NAME = "TeamsCaptionNotes"
 
 def startup_command() -> str:
     if getattr(sys, "frozen", False):
-        args = [str(Path(sys.executable).resolve())]
+        args = [str(Path(sys.executable).resolve()), "--startup"]
     else:
         python = Path(sys.executable).resolve()
         windowed = python.with_name("pythonw.exe")
         args = [str(windowed if windowed.exists() else python),
-                str(Path(__file__).resolve().with_name("teams_caption_tray.py"))]
+                str(Path(__file__).resolve().with_name("teams_caption_tray.py")), "--startup"]
     command = subprocess.list2cmdline(args)
     # The documented Run value limit includes the complete command line.
     if len(command) > 260:
