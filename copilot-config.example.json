@@ -1,0 +1,10 @@
+{
+  "_instructions": "Copy this file to copilot-config.json, enter the Entra IDs, and set enabled to true for automatic summaries.",
+  "enabled": false,
+  "auto_summarize": true,
+  "tenant_id": "YOUR_TENANT_ID",
+  "client_id": "YOUR_CLIENT_ID",
+  "time_zone": "America/New_York",
+  "max_transcript_chars": 200000,
+  "prompt": "Summarize the supplied Microsoft Teams meeting transcript.\n\nReturn these sections in Markdown:\n- Executive Summary\n- Decisions Made\n- Action Items (include owner and due date when explicitly stated)\n- Risks / Blockers\n- Open Questions\n\nUse only the supplied transcript. Do not invent missing facts, owners, decisions, or dates. Clearly write \"None identified\" when a section has no supported information."
+}

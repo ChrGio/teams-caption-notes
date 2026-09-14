@@ -1,2 +1,137 @@
-# teams-caption-notes
-Windows tray app for capturing Microsoft Teams live captions and preparing meeting notes.
+# Teams Caption Notes
+
+Version 4.3 fixes false meeting splits when a previously detected meeting window
+is minimized, compact, or temporarily exposes no meeting controls. It tracks that
+specific window (handle, process, and title), including a native-window check when
+UI Automation omits it. The ordinary Teams home/chat window alone does not keep a
+meeting open. Hidden windows are tracked but their caption trees are not read.
+
+The tray turns amber when meeting visibility is uncertain; the same transcript
+remains open and saving. Visibility loss/restoration and closure decisions are
+logged. After tracked meeting windows disappear, a full eight-second confirmation
+period is required before finalizing. A clearly different named meeting starts a
+new transcript. Brief same-meeting reconnects inside the grace period stay together.
+
+This is window-based detection, not an official Teams call-state API. A stale
+post-call/caption window can delay finalization until closed; multiple concurrent
+meetings are not reliably isolated. It cannot recover captions that Teams stops
+exposing while hidden. Use **Stop watcher** to save/finalize manually if needed.
+
+Version 4.2 adds **Hide tray pop-up notifications**, enabled by default. The
+right-click tray checkbox controls all app tray balloons, including capture start,
+save confirmations, and errors. Tray colors, status text, and logs still update.
+The choice is saved beside the executable in `tray-settings.json` and survives
+restarts. Enabling it also dismisses the currently displayed app tray notification.
+It does not change Teams notifications, automatically detect screen sharing, or
+hide dialogs in windows you deliberately open (such as sign-in/setup/errors).
+
+UI Automation COM failures while scanning windows are retried with a 2–30 second
+backoff. The tray turns red while retrying. The active transcript is preserved and
+an unreadable scan does not count as leaving the meeting. Error logs are throttled
+to once per minute during an outage. This handles returned COM errors, not calls
+that hang indefinitely; captions that disappear during the outage may be missed.
+
+Version 4.1 orders meeting notes by their capture-start time (not later file edits).
+Tray **Copy latest** uses the newest meeting in this executable's `transcripts` folder;
+**Copy selected → ChatGPT** in the notes window uses only the highlighted rows.
+The copied prompt and confirmation identify the filenames. Successful handoffs are
+logged without transcript contents (`teams-caption-notes.log` for tray actions,
+`notes-window.log` for notes-window actions). Refresh preserves selection by file.
+Web handoffs still require pasting into a new chat; they do not upload or send automatically.
+
+Version 4 adds **Chats and notes…**: select Teams chats and dates for daily exports, search notes across folders, assign project labels, prepare long inputs for AI summaries, and recover meeting journals. See [CHAT_NOTES_SETUP.md](CHAT_NOTES_SETUP.md) for setup and limitations. Chat downloads require a tenant-approved Entra app with delegated `Chat.Read`; they do not use the Copilot summary API.
+
+Meeting capture now journals each changed batch and refreshes Markdown about every ten seconds, with an immediate final save. Chat downloads, AI work, and the notes window run independently of capture.
+
+A local Windows utility that watches the accessibility tree of an active Microsoft Teams meeting, extracts visible live captions, removes repeated/rolling updates, and continuously saves an AI-friendly Markdown transcript.
+
+Both captions shown inside the meeting and the detached **Captions — Pinned window — Web content** viewer are supported.
+
+When the detached viewer is open, it is treated as the authoritative caption source. This prevents lagging copies from other Teams windows from being repeated under the wrong speaker. Rolling caption updates are merged, substantial verbatim replays are removed, and sentence-like text such as “Hi, Jordan.” is not accepted as a participant name.
+
+It does **not** record microphone or system audio or click Teams controls. Live captions must already be turned on in Teams. Transcripts stay local unless a user explicitly sends one through an optional Copilot workflow.
+
+## Install
+
+From PowerShell:
+
+```powershell
+cd "C:\Apps\teams-caption-notes"
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+## Use
+
+1. Start the watcher:
+
+```powershell
+.\.venv\Scripts\python.exe .\teams_caption_notes.py
+```
+
+2. Join a Teams meeting and turn on **More > Language and speech > Show live captions**.
+
+The watcher starts a new timestamped transcript when Teams' meeting controls appear. After the tracked meeting windows disappear, it waits through an eight-second confirmation period before finalizing and waiting for the next meeting. A minimized or temporarily unreadable tracked meeting window keeps the same transcript open; a stale post-call window can delay finalization until closed. The meeting name is included in the filename, such as `Team_standup-20260908-103000.md`, and in the document heading. It prints a short status every 15 seconds. Press `Ctrl+C` to stop the watcher.
+
+Choose a file or change the timeout:
+
+```powershell
+.\.venv\Scripts\python.exe .\teams_caption_notes.py --output .\transcripts\weekly-sync.md --leave-grace 12
+```
+
+To save one meeting and exit automatically after you leave:
+
+```powershell
+.\.venv\Scripts\python.exe .\teams_caption_notes.py --exit-after-meeting
+```
+
+## Standalone system-tray app
+
+Version 3 adds **Start with Windows (at sign-in)** and **Copy latest for ChatGPT** to the tray menu. Startup is optional and initially off. Enable it after moving the executable to its permanent folder. It applies to the current Windows user; turning it off removes this app's startup entry. If you move the executable, enable startup again from the new copy. Windows Settings > Apps > Startup may separately disable startup, and organizational policy can block it. The app reports a setup error without interrupting capture.
+
+**Copy latest for ChatGPT** copies the complete latest transcript with the summary prompt and opens ChatGPT in your default browser. Review, paste, and send it there. It needs no API key or Entra IDs. For a transcript too large to paste, use **Open transcripts** and attach the file manually in your AI tool. This command does not fetch or automatically save the generated summary.
+
+For caption display tips, screen sharing, and the chat-aggregation investigation, see [NEXT_VERSION.md](NEXT_VERSION.md).
+
+`TeamsCaptionNotes.exe` runs in the Windows notification area and does not require Python on the destination computer. Its icon is blue while waiting, green while capturing, amber while meeting visibility is uncertain, gray when stopped, and red after an error or while retrying a failed scan. Right-click it to start or stop watching, open transcripts, view the diagnostic log, or exit. Double-clicking the icon opens the transcript folder.
+
+If a transcript is open in an application that locks the file, capture continues in memory and retries automatically. If the file remains locked when the meeting ends, the app writes a timestamped `-recovered-` copy beside it, falling back to `%LOCALAPPDATA%\Teams Caption Notes\transcripts` if necessary.
+
+### Optional Microsoft 365 Copilot summaries
+
+The tray menu can sign in to Microsoft 365 Copilot, summarize the latest transcript on demand, or generate a structured summary automatically when each meeting ends. Summaries contain an executive summary, decisions, action items with supported owners/dates, risks, blockers, and open questions. They are saved beside the transcript as `-summary.md`.
+
+This integration is disabled by default. It requires a tenant-provided Entra public-client application registration, a Microsoft 365 Copilot add-on license for each user, delegated Graph consent, and the current preview `/beta` API. See [COPILOT_SETUP.md](COPILOT_SETUP.md) for exact administrator and user setup.
+
+The standard/basic Microsoft 365 Copilot Chat entitlement does not currently include access to this Graph API. For those users, choose **Copy latest for basic Copilot Chat** from the tray menu. The app copies a structured prompt plus the latest transcript and opens the official Copilot Chat page; the user reviews, pastes, and sends it manually. This is intentionally user-assisted because Microsoft provides no supported background API for the basic entitlement.
+
+Build it from PowerShell:
+
+```powershell
+.\build.ps1
+```
+
+The executable is written to `dist\TeamsCaptionNotes.exe`. Copy that single file to another Windows computer and double-click it. Transcripts and `teams-caption-notes.log` are created beside the executable, so place it in a folder where the user can write files.
+
+## If no captions are found
+
+Teams' accessibility layout varies by release. While a meeting and live captions are visible, create a diagnostic file:
+
+```powershell
+.\.venv\Scripts\python.exe .\teams_caption_notes.py --diagnose .\teams-uia-diagnostic.json
+```
+
+The diagnostic contains text exposed by the Teams window, so review it before sharing. If captions are present but not under a caption-labelled accessibility region, retry with the conservative positional fallback:
+
+```powershell
+.\.venv\Scripts\python.exe .\teams_caption_notes.py --allow-positional-fallback
+```
+
+That fallback can capture unrelated text displayed near the bottom of the Teams window. Inspect the transcript before sending it to an AI system.
+
+## Privacy and operational notes
+
+- Tell participants and follow your organization's policy before transcribing or summarizing a meeting.
+- Files remain local unless your sync software, output location, or later AI workflow uploads them.
+- UI Automation can only read captions Teams exposes to Windows. Keep the meeting window open; it may be behind other windows, but do not minimize it.
+- Speaker labels depend on what the current Teams build exposes. Unlabelled caption text is still retained.
