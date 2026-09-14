@@ -5,6 +5,16 @@
 Older planning sections are historical. Current capabilities and installation
 instructions are on the main page and in the user guide.
 
+## Version 4.5.1
+
+- Small version-label and documentation maintenance release that provides a
+  newer version for testing the existing user-confirmed update path from v4.5.
+- No changes to caption capture, meeting detection, or updater/install logic.
+- Adds focused checks for patch-version ordering. Automated tests do not prove
+  that a live update will succeed on a particular Windows installation.
+
+See the [v4.5.1 release notes](RELEASE_NOTES-v4.5.1.md) for the manual update test.
+
 ## Version 4.5
 
 - Opt-in caption setup from the app: enable the current meeting's live captions

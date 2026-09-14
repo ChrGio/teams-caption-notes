@@ -24,7 +24,7 @@ import tray_settings
 import app_update
 
 
-APP_VERSION = "4.5"
+APP_VERSION = "4.5.1"
 APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"

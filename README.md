@@ -73,7 +73,7 @@ Microsoft sign-in, permission, and licensing requirements.
 - [User guide: caption setup, tray controls, updates, and troubleshooting](docs/USER_GUIDE.md)
 - [Browse notes and optionally collect Teams chats](docs/CHAT_NOTES_SETUP.md)
 - [Optional direct Microsoft 365 Copilot summaries](docs/COPILOT_SETUP.md)
-- [What's new in v4.5](docs/RELEASE_NOTES-v4.5.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
+- [What's new in v4.5.1](docs/RELEASE_NOTES-v4.5.1.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
 - [Run from source, test, or build the EXE](docs/DEVELOPMENT.md)
 - [Report a bug](https://github.com/ChrGio/teams-caption-notes/issues) — remove meeting
   text, account details, and other sensitive data before sharing diagnostics.

@@ -67,6 +67,14 @@ class ReleaseTests(unittest.TestCase):
         self.assertIsNone(self.check(metadata(), "4.10"))
         self.assertEqual(self.check(metadata(release(version="4.10"))).version, "4.10")
 
+    def test_patch_release_is_available_from_minor_version(self):
+        patch_release = release(version="4.5.1")
+        self.assertEqual(self.check(metadata(patch_release), "4.5"), patch_release)
+
+    def test_minor_release_follows_patch_without_reoffering_same_patch(self):
+        self.assertEqual(self.check(metadata(release(version="4.6")), "4.5.1").version, "4.6")
+        self.assertIsNone(self.check(metadata(release(version="4.5.1")), "4.5.1"))
+
     def test_draft_and_prerelease_are_ignored(self):
         for key in ("draft", "prerelease"):
             item = metadata()
