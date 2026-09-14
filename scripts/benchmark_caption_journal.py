@@ -1,9 +1,13 @@
 """Synthetic durability/performance check; no Teams or user data is accessed."""
 import json
+import sys
 import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# Running this file directly from any directory still finds the flat src modules.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from caption_journal import CaptionJournal, recover_journal
 from teams_caption_notes import Caption

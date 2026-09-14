@@ -1,4 +1,6 @@
-# Teams chats and notes — version 4
+# Teams chats and notes
+
+[← Back to the project](../README.md) · [User guide](USER_GUIDE.md)
 
 Open the tray menu and select **Chats and notes…**. Meeting capture continues while this window is open.
 
@@ -23,7 +25,7 @@ Each request creates a fresh folder under `chat-notes\collection-TIMESTAMP-ID`. 
 
 If the connection fails or you cancel, downloaded messages are saved with **PARTIAL** status. This is not a complete daily record. Retry by running a fresh collection. Within a collection, message IDs are deduplicated and the latest returned edit wins. Returned deletions appear as deletion markers. A new collection reflects the API's current responses; old snapshots are retained and are not continuously synchronized with later edits or deletions.
 
-In **Saved notes**, refresh after collecting. Select the daily notes and choose **ChatGPT** or **Copilot Chat**. The app copies a summary prompt and opens that service. Review, paste, and send it. Browser summaries are not automatically saved back to the app. **Copilot API summary** generates a saved summary for one selected note, but still requires the separate licensed Copilot setup described in `COPILOT_SETUP.md`.
+In **Saved notes**, refresh after collecting. Select the daily notes and choose **ChatGPT** or **Copilot Chat**. The app copies a summary prompt and opens that service. Review, paste, and send it. Browser summaries are not automatically saved back to the app. **Copilot API summary** generates a saved summary for one selected note, but still requires the separate licensed [Copilot setup](COPILOT_SETUP.md).
 
 The prompt asks for supported decisions, actions, owners, dates, risks, and questions. It distinguishes named mentions from attendance and tells the AI to treat the notes as data. Partial export warnings remain part of the summary input.
 
@@ -43,8 +45,8 @@ Journals and snapshots contain meeting/chat text and are retained alongside your
 
 ## Remaining practical checks
 
-The release passed 49 automated tests, including API pagination/retry/cancellation, partial exports, edit deduplication, source splitting, and capture-to-journal finalization. A synthetic four-hour meeting (2,880 caption updates) recovered every caption from a 955,653-byte journal; writes took about 4.8 seconds total on the development machine. This tests local durability and output scaling, not four hours of live Teams accessibility behavior. The notes window passed a construction check; the tenant API has not been exercised with real credentials.
+The original version 4 validation passed 49 automated tests, including API pagination/retry/cancellation, partial exports, edit deduplication, source splitting, and capture-to-journal finalization. This is a historical test count, not the current suite total. A synthetic four-hour meeting (2,880 caption updates) recovered every caption from a 955,653-byte journal; writes took about 4.8 seconds total on the development machine. This tests local durability and output scaling, not four hours of live Teams accessibility behavior. The notes window passed a construction check; the tenant API has not been exercised with real credentials.
 
 The application does not own Teams' caption appearance settings. Use Teams Caption settings > Caption styles for smaller captions, and the available Accessibility setting to keep captions enabled. Keep the caption source open. For screen sharing, select the intended application window or a separate display and inspect the sharing preview.
 
-Automatic startup remains opt-in. After moving to the version 4 EXE, select **Start with Windows** in that copy to update the saved executable path. Managed-machine startup, real multi-hour meetings, and tenant-specific Graph consent require validation on your organization's machines; this release does not bypass those controls.
+Since version 4.4, the packaged app defaults to starting at Windows sign-in and remembers an explicit tray-menu opt-out. Launching a relocated copy updates the startup path when that preference is on. Source launches do not enable startup automatically. See the [user guide](USER_GUIDE.md#standalone-system-tray-app). Managed-machine startup, real multi-hour meetings, and tenant-specific Graph consent require validation on your organization's machines; the app does not bypass those controls.

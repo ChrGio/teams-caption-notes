@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import queue
 import threading
 import tkinter as tk
@@ -16,6 +17,13 @@ import copilot_summary
 import notes_library
 import teams_chat
 import teams_caption_notes as capture
+
+
+def setup_guide_path(base: Path) -> Path:
+    """Keep the EXE's guide location; source checkouts use the docs directory."""
+    if getattr(sys, "frozen", False):
+        return base / "CHAT_NOTES_SETUP.md"
+    return Path(__file__).resolve().parents[1] / "docs" / "CHAT_NOTES_SETUP.md"
 
 
 class NotesWindow:
@@ -110,7 +118,7 @@ class NotesWindow:
         toolbar.pack(fill="x")
         self.button(toolbar, "Save setup", self.save_setup)
         self.button(toolbar, "Sign in and load chats", self.load_chats)
-        self.button(toolbar, "Setup guide", lambda: os.startfile(self.base / "CHAT_NOTES_SETUP.md"))
+        self.button(toolbar, "Setup guide", lambda: os.startfile(setup_guide_path(self.base)))
         dates = ttk.Frame(parent)
         dates.pack(fill="x", pady=6)
         self.start = tk.StringVar(value=str(date.today()))

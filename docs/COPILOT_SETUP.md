@@ -1,5 +1,10 @@
 # Microsoft 365 Copilot setup
 
+[← Back to the project](../README.md) · [User guide](USER_GUIDE.md)
+
+This guide is for the optional direct API integration. Basic caption capture and
+the manual copy-to-Copilot/ChatGPT workflow do not need this setup.
+
 Copilot summarization is optional and disabled by default. The transcript stays local unless you manually request a summary or set both `enabled` and `auto_summarize` to `true` in `copilot-config.json`.
 
 ## Tenant prerequisites
@@ -31,7 +36,7 @@ Copilot summarization is optional and disabled by default. The transcript stays 
 
 1. Right-click the tray icon and select **Configure Copilot…**. The app creates and opens `copilot-config.json` beside the executable.
 2. Replace `YOUR_TENANT_ID` and `YOUR_CLIENT_ID` with the recorded IDs.
-3. Set `enabled` to `true` for automatic summaries after meetings. Keep it `false` to allow only the manual **Summarize latest transcript** command.
+3. Set both `enabled` and `auto_summarize` to `true` for automatic summaries after meetings. Keep `enabled` false to allow only the manual **Summarize latest transcript** command. The [example configuration](../examples/copilot-config.example.json) uses placeholders only.
 4. Save the JSON file.
 5. Right-click the tray icon and choose **Sign in / test Copilot**. A Microsoft sign-in browser opens. Consent may require an administrator.
 

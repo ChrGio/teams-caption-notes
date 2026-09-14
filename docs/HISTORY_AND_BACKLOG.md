@@ -1,5 +1,10 @@
 # Version history and feature backlog
 
+[← Back to the project](../README.md) · [User guide](USER_GUIDE.md)
+
+Older planning sections are historical. Current capabilities and installation
+instructions are on the main page and in the user guide.
+
 ## Version 4.5
 
 - Opt-in caption setup from the app: enable the current meeting's live captions
@@ -46,7 +51,7 @@ tests and executable packaging checks do not establish live Teams compatibility.
   the new startup choice. Python source launches retain manual startup setup.
 
 See [the v4.4 release notes](RELEASE_NOTES-v4.4.md) and
-[update instructions](README.md#updating-the-portable-app). Local testing does not
+[update instructions](USER_GUIDE.md#updating-the-portable-app). Local testing does not
 establish that a managed organization's application policy will allow the
 unsigned executable or its updater. No real update installation, reboot, or
 startup registration on a user's machine is implied by automated tests.
@@ -64,7 +69,7 @@ startup registration on a user's machine is implied by automated tests.
 
 **Version 4 update:** chat/date selection, daily chat exports, notes search, project labels, manual combined summary inputs, lossless long-input splitting, caption journals, and journal recovery are now implemented. See [CHAT_NOTES_SETUP.md](CHAT_NOTES_SETUP.md). The version 3 planning record below is historical. Scheduled chat collection, automatic browser-summary retrieval, and managed-device deployment validation remain outside the implemented features. Version 4.5 adds explicit, user-confirmed caption setup; unattended per-meeting caption changes are not implemented.
 
-Updated September 11, 2026 from the user's meeting-derived feature list. The underlying meeting transcript was not provided for this planning update; suggestions are not treated as confirmed commitments.
+Planning record from September 11, 2026. Suggestions are not commitments; consult the release notes for implemented features.
 
 ## Included in version 3
 
@@ -105,8 +110,8 @@ Visible-chat scraping is not a complete-history solution: Teams may only expose 
 
 ## Remaining backlog
 
-- Long meetings: benchmark multi-hour capture, reduce full-file rewrite overhead, add a recoverable journal, and split large AI inputs with traceable per-part summaries. Current capture and API size limits are unchanged.
-- Project knowledge: optional project labels and a searchable index across meeting notes, then explicitly selected cross-meeting summaries.
+- Long meetings: validate real multi-hour Teams capture on representative machines. Journaling, periodic Markdown refresh, synthetic durability benchmarks, and long-input splitting already exist; they do not guarantee continuous live-caption availability.
+- Project knowledge: expand on the existing project labels, searchable notes, and explicitly selected combined-summary inputs after gathering user feedback.
 - Startup support: test on representative managed Windows machines and document IT-approved installation/signing procedures.
 - Caption reliability: further real-meeting validation of built-in and detached caption sources, speaker changes, and final caption revisions.
 - Caption setup: real-client testing across managed Teams versions, settings
