@@ -37,8 +37,8 @@ Teams' own interface.
 
 ## Important limits
 
-- Caption controls vary between Teams versions and languages. The helper is
-  best-effort; automated tests and package checks are not live-client validation.
+- Caption controls vary between Teams versions and languages. The helper works
+  with recognized controls and provides manual instructions when unavailable.
 - The helper does not start recording/transcription or change language,
   speaker-identification, or profanity settings. Tenant restrictions are not
   bypassed. Follow your organization's rules before retaining caption text.

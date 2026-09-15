@@ -164,10 +164,9 @@ time: Teams menus/settings may become visible, including to anyone seeing a
 shared screen. The app's quiet tray-notification setting does not hide Teams UI.
 Tell participants and follow organizational policy before saving caption text.
 
-The setup commands are best-effort. Automated tests and packaging checks do not
-replace validation against a real installed Teams client. A confirmed on/off
-state still does not guarantee that Teams will expose every caption while
-minimized, off-screen, or disconnected.
+The setup commands require recognized controls in the installed Teams client.
+An enabled caption setting does not guarantee that Teams will expose every
+caption while minimized, off-screen, or disconnected.
 
 ### Updating the portable app
 

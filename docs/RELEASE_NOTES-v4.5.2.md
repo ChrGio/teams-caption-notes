@@ -1,10 +1,8 @@
 # Teams Caption Notes v4.5.2
 
 This maintenance update makes copy-to-AI handoffs clearer and adds clipboard
-verification. An older draft in ChatGPT can look like an old transcript was
-copied, even when the clipboard contains the latest meeting. **Choose New chat
-and paste with Ctrl+V**; opening a website does not replace its draft or send
-the transcript.
+verification. **Choose New chat and paste with Ctrl+V** to summarize notes;
+opening a website does not replace an existing draft or send the transcript.
 
 ## Improvements
 

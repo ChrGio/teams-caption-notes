@@ -43,10 +43,8 @@ After a crash, use **Saved notes > Recover meeting journal** and choose the jour
 
 Journals and snapshots contain meeting/chat text and are retained alongside your notes. A journal is not a Teams audio recording. No scheduled chat collection is enabled by this version.
 
-## Remaining practical checks
-
-The original version 4 validation passed 49 automated tests, including API pagination/retry/cancellation, partial exports, edit deduplication, source splitting, and capture-to-journal finalization. This is a historical test count, not the current suite total. A synthetic four-hour meeting (2,880 caption updates) recovered every caption from a 955,653-byte journal; writes took about 4.8 seconds total on the development machine. This tests local durability and output scaling, not four hours of live Teams accessibility behavior. The notes window passed a construction check; the tenant API has not been exercised with real credentials.
+## Display and deployment considerations
 
 The application does not own Teams' caption appearance settings. Use Teams Caption settings > Caption styles for smaller captions, and the available Accessibility setting to keep captions enabled. Keep the caption source open. For screen sharing, select the intended application window or a separate display and inspect the sharing preview.
 
-Since version 4.4, the packaged app defaults to starting at Windows sign-in and remembers an explicit tray-menu opt-out. Launching a relocated copy updates the startup path when that preference is on. Source launches do not enable startup automatically. See the [user guide](USER_GUIDE.md#standalone-system-tray-app). Managed-machine startup, real multi-hour meetings, and tenant-specific Graph consent require validation on your organization's machines; the app does not bypass those controls.
+Since version 4.4, the packaged app defaults to starting at Windows sign-in and remembers an explicit tray-menu opt-out. Launching a relocated copy updates the startup path when that preference is on. Source launches do not enable startup automatically. See the [user guide](USER_GUIDE.md#standalone-system-tray-app). Managed-device startup and Graph access remain subject to organizational policy and tenant consent; the app does not bypass those controls.

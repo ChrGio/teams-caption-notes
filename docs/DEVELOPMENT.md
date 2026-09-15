@@ -105,3 +105,12 @@ way is unsigned; respect Windows and your organization's security policies.
 Do not commit real meeting transcripts, chat exports, logs, UI Automation dumps,
 account identifiers, or sign-in caches. Before publishing a build, run the tests,
 review the exact files being packaged, and verify the artifact separately.
+
+## Public release writing
+
+Write release notes for anyone downloading the app: describe product changes,
+update instructions, compatibility requirements, and relevant limitations.
+Include artifact checksums when available. Keep individual troubleshooting
+conversations, references to a particular user's computer, and internal
+handoff or testing-session notes out of public release descriptions and guides.
+Keep detailed verification procedures in developer documentation.

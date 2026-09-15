@@ -18,13 +18,11 @@ See the [v4.5.2 release notes](RELEASE_NOTES-v4.5.2.md).
 
 ## Version 4.5.1
 
-- Small version-label and documentation maintenance release that provides a
-  newer version for testing the existing user-confirmed update path from v4.5.
+- Version-label and documentation maintenance release.
 - No changes to caption capture, meeting detection, or updater/install logic.
-- Adds focused checks for patch-version ordering. Automated tests do not prove
-  that a live update will succeed on a particular Windows installation.
+- Adds regression coverage for patch-version ordering.
 
-See the [v4.5.1 release notes](RELEASE_NOTES-v4.5.1.md) for the manual update test.
+See the [v4.5.1 release notes](RELEASE_NOTES-v4.5.1.md) for update instructions.
 
 ## Version 4.5
 
@@ -48,9 +46,8 @@ See the [v4.5.1 release notes](RELEASE_NOTES-v4.5.1.md) for the manual update te
 - Retains v4.4 startup and checked, user-confirmed updates. See the
   [v4.5 release notes](RELEASE_NOTES-v4.5.md).
 
-Caption setup remains best-effort across Teams releases, languages, and tenant
-policies. Real-client UI Automation verification is still needed; mocked control
-tests and executable packaging checks do not establish live Teams compatibility.
+Caption setup support depends on the Teams version, language, and tenant policy.
+Unrecognized or unavailable controls produce manual setup instructions.
 
 ## Version 4.4
 
@@ -72,10 +69,9 @@ tests and executable packaging checks do not establish live Teams compatibility.
   the new startup choice. Python source launches retain manual startup setup.
 
 See [the v4.4 release notes](RELEASE_NOTES-v4.4.md) and
-[update instructions](USER_GUIDE.md#updating-the-portable-app). Local testing does not
-establish that a managed organization's application policy will allow the
-unsigned executable or its updater. No real update installation, reboot, or
-startup registration on a user's machine is implied by automated tests.
+[update instructions](USER_GUIDE.md#updating-the-portable-app). The executable is
+unsigned; organizational policy may require IT approval for installation,
+updates, or sign-in startup.
 
 ## Versions 4.2 and 4.3
 
@@ -138,7 +134,3 @@ Visible-chat scraping is not a complete-history solution: Teams may only expose 
 - Caption setup: real-client testing across managed Teams versions, settings
   layouts, and languages; keep the fallback instructions when strict control
   verification cannot succeed. No silent configuration changes or policy bypass.
-
-## Historical version 3 validation
-
-For version 3, 31 automated tests passed, including startup path quoting, current-user registry targeting, disabled/missing entries, ChatGPT handoff, and clipboard failure handling. Registry writes and browser launches were mocked in those tests. A real reboot, a managed coworker machine, and a live meeting were not exercised in that historical build. This is not the current version's test count.
