@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import logging
 import msvcrt
 import os
@@ -22,9 +23,10 @@ import windows_startup
 import notes_library
 import tray_settings
 import app_update
+import windows_clipboard
 
 
-APP_VERSION = "4.5.1"
+APP_VERSION = "4.5.2"
 APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"
@@ -33,64 +35,14 @@ CHATGPT_URL = "https://chatgpt.com/"
 
 
 def copy_to_clipboard(text: str) -> None:
-    """Copy Unicode text with the Windows API; no Python install is required."""
-    from ctypes import wintypes
+    """Copy and verify the exact Unicode payload before reporting success."""
+    windows_clipboard.copy_text(text)
 
-    user32 = ctypes.WinDLL("user32", use_last_error=True)
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    user32.OpenClipboard.argtypes = (wintypes.HWND,)
-    user32.OpenClipboard.restype = wintypes.BOOL
-    user32.CreateWindowExW.argtypes = (
-        wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
-        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-        wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID,
-    )
-    user32.CreateWindowExW.restype = wintypes.HWND
-    user32.DestroyWindow.argtypes = (wintypes.HWND,)
-    user32.EmptyClipboard.restype = wintypes.BOOL
-    user32.SetClipboardData.argtypes = (wintypes.UINT, wintypes.HANDLE)
-    user32.SetClipboardData.restype = wintypes.HANDLE
-    kernel32.GlobalAlloc.argtypes = (wintypes.UINT, ctypes.c_size_t)
-    kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
-    kernel32.GlobalLock.argtypes = (wintypes.HGLOBAL,)
-    kernel32.GlobalLock.restype = wintypes.LPVOID
-    kernel32.GlobalUnlock.argtypes = (wintypes.HGLOBAL,)
-    kernel32.GlobalFree.argtypes = (wintypes.HGLOBAL,)
 
-    # A windowless tray callback still needs a valid clipboard owner. Opening
-    # with NULL followed by EmptyClipboard can make SetClipboardData fail.
-    owner = user32.CreateWindowExW(0, "STATIC", "", 0, 0, 0, 0, 0, None, None, None, None)
-    if not owner:
-        raise OSError("Could not create the clipboard owner window.")
-    for _ in range(10):
-        if user32.OpenClipboard(owner):
-            break
-        time.sleep(0.05)
-    else:
-        user32.DestroyWindow(owner)
-        raise OSError("The Windows clipboard is busy. Try again.")
-
-    handle = None
-    try:
-        encoded = text.encode("utf-16-le") + b"\x00\x00"
-        handle = kernel32.GlobalAlloc(0x0002, len(encoded))  # GMEM_MOVEABLE
-        if not handle:
-            raise OSError("Could not allocate clipboard memory.")
-        pointer = kernel32.GlobalLock(handle)
-        if not pointer:
-            raise OSError("Could not lock clipboard memory.")
-        try:
-            ctypes.memmove(pointer, encoded, len(encoded))
-        finally:
-            kernel32.GlobalUnlock(handle)
-        if not user32.EmptyClipboard() or not user32.SetClipboardData(13, handle):  # CF_UNICODETEXT
-            raise OSError("Could not place the transcript on the clipboard.")
-        handle = None  # Windows owns it after SetClipboardData succeeds.
-    finally:
-        user32.CloseClipboard()
-        user32.DestroyWindow(owner)
-        if handle:
-            kernel32.GlobalFree(handle)
+def open_chat_destination(service: str, url: str) -> None:
+    # Opening a website cannot clear a browser's existing conversation/draft.
+    # The user must choose New chat and paste the verified clipboard contents.
+    os.startfile(url)
 
 
 def tray_image(color: str) -> Image.Image:
@@ -128,6 +80,7 @@ class TrayApp:
         self._meeting_active = False
         self._update_capture_started = threading.Event()
         self._update_status = "Updates: not checked"
+        self._handoff_status = "AI copy: no transcript copied this session"
         self._sign_in_thread = None
         self._notes_process = None
         self._caption_setup_process = None
@@ -156,6 +109,8 @@ class TrayApp:
                 pystray.MenuItem("Summarize latest transcript", self.summarize_latest),
                 pystray.MenuItem("Copy latest for basic Copilot Chat", self.open_basic_copilot),
                 pystray.MenuItem("Copy latest for ChatGPT", self.open_chatgpt),
+                pystray.MenuItem("Copy latest for AI (no browser)", self.copy_latest_only),
+                pystray.MenuItem(lambda _: self._handoff_status, None, enabled=False),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(lambda _: self._update_status, None, enabled=False),
                 pystray.MenuItem("Check for updates…", self.check_for_updates, enabled=lambda _: not self._update_lock.locked()),
@@ -446,23 +401,54 @@ class TrayApp:
     def open_chatgpt(self, icon=None, item=None) -> None:
         self.open_ai_chat("ChatGPT", CHATGPT_URL)
 
-    def open_ai_chat(self, service: str, url: str) -> None:
+    def copy_latest_only(self, icon=None, item=None) -> None:
+        self.open_ai_chat("Clipboard", None)
+
+    def _set_handoff_status(self, status: str) -> None:
+        # Keep this separate from watcher status: caption events must not erase it.
+        self._handoff_status = status
+        icon = getattr(self, "icon", None)
+        if icon is not None:
+            try:
+                icon.update_menu()
+            except Exception:
+                logging.exception("Could not refresh AI copy status")
+
+    def open_ai_chat(self, service: str, url: str | None) -> None:
+        self._set_handoff_status(f"AI copy: preparing for {service}…")
         try:
             latest = self.latest_transcript()
             if latest is None:
                 raise copilot_summary.CopilotError("No transcript files were found.")
-            transcript_text = latest.read_text(encoding="utf-8-sig")
-            prompt = f"SOURCE FILE: {latest.name}\n\n{copilot_summary.DEFAULT_PROMPT}\n\nMEETING TRANSCRIPT:\n{transcript_text}"
+            prompt = notes_library.handoff_prompt([latest], copilot_summary.DEFAULT_PROMPT)
             copy_to_clipboard(prompt)
-            logging.info("AI handoff copied: service=%s source=%s characters=%d", service, latest.resolve(), len(prompt))
-            os.startfile(url)
-            self.notify(
-                "Transcript copied",
-                f"Copied {latest.name}\nPaste into a new {service} chat, review, then send.",
-            )
         except Exception as exc:
+            self._set_handoff_status("AI copy FAILED — clipboard may contain old text; see log")
             logging.exception("Could not prepare transcript for %s", service)
             self.notify(f"Could not open {service}", str(exc))
+            return
+        digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        logging.info("AI handoff copied and verified: service=%s source=%s characters=%d sha256=%s",
+                     service, latest.resolve(), len(prompt), digest)
+        if url is not None:
+            try:
+                open_chat_destination(service, url)
+            except Exception as exc:
+                self._set_handoff_status(f"Copied {latest.name} — browser did not open; paste manually")
+                logging.exception("Transcript copied, but browser launch failed for %s", service)
+                self.notify("Transcript copied; browser did not open", str(exc))
+                return
+        try:
+            windows_clipboard.verify_text(prompt)
+        except Exception as exc:
+            self._set_handoff_status("AI copy NOT VERIFIED — clipboard changed or is busy; copy again")
+            logging.exception("AI handoff clipboard verification failed after launch: service=%s source=%s",
+                              service, latest.resolve())
+            self.notify("Check your clipboard before pasting", str(exc))
+            return
+        self._set_handoff_status(f"Copied: {latest.name} — paste with Ctrl+V in a new chat")
+        logging.info("AI handoff ready: service=%s source=%s sha256=%s", service, latest.resolve(), digest)
+        self.notify("Transcript copied", f"Copied {latest.name}\nChoose New chat, paste with Ctrl+V, review, then send.")
 
     def _start_summary(self, transcript_path: Path, meeting_title: str) -> None:
         with self._lock:

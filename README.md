@@ -43,6 +43,10 @@ The executable is unsigned; your organization's IT approval may be required.
 Copying to ChatGPT or Copilot opens the website and puts the prompt on your
 clipboard. **You review, paste, and send it**; browser summaries are not
 automatically collected or saved.
+If ChatGPT shows an older draft or conversation, choose **New chat** and paste
+with **Ctrl+V**. Opening the site does not paste or replace a draft. The tray
+shows the last copied filename; **Copy latest for AI (no browser)**
+lets you paste into a chat you have already opened.
 
 ## Where your notes go
 
@@ -73,7 +77,7 @@ Microsoft sign-in, permission, and licensing requirements.
 - [User guide: caption setup, tray controls, updates, and troubleshooting](docs/USER_GUIDE.md)
 - [Browse notes and optionally collect Teams chats](docs/CHAT_NOTES_SETUP.md)
 - [Optional direct Microsoft 365 Copilot summaries](docs/COPILOT_SETUP.md)
-- [What's new in v4.5.1](docs/RELEASE_NOTES-v4.5.1.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
+- [What's new in v4.5.2](docs/RELEASE_NOTES-v4.5.2.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
 - [Run from source, test, or build the EXE](docs/DEVELOPMENT.md)
 - [Report a bug](https://github.com/ChrGio/teams-caption-notes/issues) — remove meeting
   text, account details, and other sensitive data before sharing diagnostics.

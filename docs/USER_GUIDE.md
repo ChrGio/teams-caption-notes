@@ -87,6 +87,28 @@ or change Windows security policies.
 
 **Copy latest for ChatGPT** copies the complete latest transcript with the summary prompt and opens ChatGPT in your default browser. Review, paste, and send it there. It needs no API key or Entra IDs. For a transcript too large to paste, use **Open transcripts** and attach the file manually in your AI tool. This command does not fetch or automatically save the generated summary.
 
+**An old draft is not the new clipboard.** Opening ChatGPT or Copilot does not
+paste text, reset a conversation, or replace an existing draft. Choose **New
+chat**, then paste with **Ctrl+V**. Check the `SOURCE FILE:` and `COPIED AT:` lines
+at the top before sending. Both tray copy actions select the latest meeting by
+capture-start time, not by when OneDrive or an editor last touched a file.
+
+Starting with v4.5.2:
+
+- **Copy latest for AI (no browser)** copies the same summary prompt
+  and latest transcript without opening either website.
+- The tray keeps a **Copied: filename** status independently of capture status,
+  including when tray pop-ups are hidden. This describes the last successful
+  handoff, not continuous monitoring of your clipboard.
+- Clipboard contents are read back immediately after copying and checked again
+  after requesting the browser launch. A busy, failed, or changed clipboard is
+  reported in the tray; do not paste an earlier clipboard entry after failure.
+  Another app can still change the clipboard later; use the copy command again.
+- **Chats and notes…** copies selected rows, not necessarily the latest meeting.
+  If selected notes are too large for its one-paste workflow, it prepares part
+  files and explicitly reports that the clipboard was **not** updated. Open and
+  copy the generated part files as described in their README.
+
 For caption display tips, screen sharing, and the chat-aggregation investigation, see [version history and backlog](HISTORY_AND_BACKLOG.md).
 
 `TeamsCaptionNotes.exe` runs in the Windows notification area and does not require Python on the destination computer. Its icon is blue while waiting, green while capturing, amber while meeting visibility is uncertain, gray when stopped, and red after an error or while retrying a failed scan. Right-click it to start or stop watching, open transcripts, view the diagnostic log, or exit. Double-clicking the icon opens the transcript folder.

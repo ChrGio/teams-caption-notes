@@ -17,6 +17,7 @@ import copilot_summary
 import notes_library
 import teams_chat
 import teams_caption_notes as capture
+import windows_clipboard
 
 
 def setup_guide_path(base: Path) -> Path:
@@ -40,7 +41,7 @@ class NotesWindow:
         self.chats = []
         self.rows = []
         self.buttons = []
-        root.title("Teams Caption Notes v4.5.1 — Chats and notes")
+        root.title("Teams Caption Notes v4.5.2 — Chats and notes")
         root.geometry("1000x680")
         root.minsize(820, 560)
         root.protocol("WM_DELETE_WINDOW", self.close)
@@ -270,26 +271,43 @@ class NotesWindow:
 
     def prepare(self, paths=None):
         paths = paths or self.selected_paths()
-        self.status.set("Preparing numbered summary prompts…")
+        self.status.set("Preparing numbered summary prompts — nothing new has been copied…")
         def done(folder):
             os.startfile(folder)
-            self.status.set(f"Summary prompts prepared in {folder}. Follow README.txt.")
+            self.status.set(f"Summary prompts prepared in {folder}. Clipboard was NOT updated. Open a part file and copy it; follow README.txt.")
         self.run_job(lambda: notes_library.prepare_bundle(paths, self.base / "summary-inputs"), done)
 
     def handoff(self, name, url):
-        from teams_caption_tray import copy_to_clipboard
+        from teams_caption_tray import copy_to_clipboard, open_chat_destination
         paths = self.selected_paths()
-        text = "\n\n".join(f"SOURCE FILE: {p.name}\n{p.read_text(encoding='utf-8-sig')}" for p in paths)
-        if len(text) > 20000:
+        self.status.set("Preparing selected notes — do not paste an earlier clipboard entry.")
+        try:
+            prompt = notes_library.handoff_prompt(paths)
+        except Exception:
+            self.status.set("Copy FAILED. Could not read selected notes; clipboard may still contain an old meeting.")
+            raise
+        if len(prompt) > 20000:
             self.prepare(paths)
             return
         names = ", ".join(p.name for p in paths)
-        prompt = f"SELECTED FILES: {names}\n\n{notes_library.SUMMARY_PROMPT}\n\nBEGIN SOURCE DATA\n{text}\nEND SOURCE DATA"
-        copy_to_clipboard(prompt)
-        logging.info("AI handoff copied: service=%s sources=%s characters=%d", name,
+        try:
+            copy_to_clipboard(prompt)
+        except Exception:
+            self.status.set("Copy FAILED. Clipboard may still contain an old meeting; do not paste it.")
+            raise
+        logging.info("AI handoff copied and verified: service=%s sources=%s characters=%d", name,
                      [str(p.resolve()) for p in paths], len(prompt))
-        self.status.set(f"Copied: {names}. Paste into a new {name} chat, review, and send.")
-        os.startfile(url)
+        self.status.set(f"Copied: {names}. Choose New chat, paste with Ctrl+V, review, and send.")
+        try:
+            open_chat_destination(name, url)
+        except Exception:
+            self.status.set(f"Copied: {names}. Browser did not open; open it yourself and paste manually.")
+            raise
+        try:
+            windows_clipboard.verify_text(prompt)
+        except Exception:
+            self.status.set("Clipboard changed or could not be verified. Copy the selected notes again before pasting.")
+            raise
 
     def api_summary(self):
         paths = self.selected_paths()

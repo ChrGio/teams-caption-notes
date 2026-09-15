@@ -5,6 +5,17 @@
 Older planning sections are historical. Current capabilities and installation
 instructions are on the main page and in the user guide.
 
+## Version 4.5.2
+
+- Makes copy-to-AI handoffs easier to verify: source filename and copy time in
+  the prompt, a persistent tray copy status, and clipboard readback checks.
+- Adds **Copy latest for AI (no browser)**.
+- Clarifies that opening an AI website does not paste text or clear an old draft.
+- Explicitly reports when large selected notes are prepared as files instead
+  of copied. Caption capture and latest-meeting selection are unchanged.
+
+See the [v4.5.2 release notes](RELEASE_NOTES-v4.5.2.md).
+
 ## Version 4.5.1
 
 - Small version-label and documentation maintenance release that provides a
