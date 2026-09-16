@@ -5,6 +5,16 @@
 Older planning sections are historical. Current capabilities and installation
 instructions are on the main page and in the user guide.
 
+## Version 4.5.3
+
+- Separates newly joined meetings even when the previous meeting window remains open.
+- Keeps caption sources associated with the selected meeting and excludes held
+  meetings and unrelated caption viewers from its transcript.
+- Filters the Teams on-hold caption status out of spoken text.
+- Preserves continuity for minimized windows and temporary accessibility outages.
+
+See the [v4.5.3 release notes](RELEASE_NOTES-v4.5.3.md).
+
 ## Version 4.5.2
 
 - Makes copy-to-AI handoffs easier to verify: source filename and copy time in

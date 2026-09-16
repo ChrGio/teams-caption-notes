@@ -26,7 +26,7 @@ import app_update
 import windows_clipboard
 
 
-APP_VERSION = "4.5.2"
+APP_VERSION = "4.5.3"
 APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"
@@ -210,7 +210,7 @@ class TrayApp:
         elif event == "scan_recovered":
             self.set_status("watching", "Windows scan recovered — watching Teams")
         elif event == "meeting_visibility_lost":
-            self.set_status("uncertain", "Meeting visibility uncertain — keeping transcript open")
+            self.set_status("uncertain", message)
         elif event == "meeting_visibility_restored":
             self.set_status("recording", "Meeting visible — continuing the same transcript")
         elif event == "meeting_ended":

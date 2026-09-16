@@ -15,7 +15,7 @@ A local Windows utility that watches the accessibility tree of an active Microso
 
 Both captions shown inside the meeting and the detached **Captions — Pinned window — Web content** viewer are supported.
 
-When the detached viewer is open, it is treated as the authoritative caption source. This prevents lagging copies from other Teams windows from being repeated under the wrong speaker. Rolling caption updates are merged, substantial verbatim replays are removed, and sentence-like text such as “Hi, Jordan.” is not accepted as a participant name.
+When a detached viewer can be associated with the selected meeting, it is treated as the authoritative caption source. Unrelated viewers are excluded. This prevents lagging copies from other Teams windows from being repeated under the wrong speaker. Rolling caption updates are merged, substantial verbatim replays are removed, and sentence-like text such as “Hi, Jordan.” is not accepted as a participant name.
 
 It does **not** record microphone or system audio. The watcher reads captions
 without clicking Teams controls; the separate v4.5 setup helper can operate only
@@ -54,6 +54,22 @@ The standalone tray app also offers the optional caption setup helper described
 below. Python command-line capture does not change Teams settings automatically.
 
 The watcher starts a new timestamped transcript when Teams' meeting controls appear. After the tracked meeting windows disappear, it waits through an eight-second confirmation period before finalizing and waiting for the next meeting. A minimized or temporarily unreadable tracked meeting window keeps the same transcript open; a stale post-call window can delay finalization until closed. The meeting name is included in the filename, such as `Team_standup-20260908-103000.md`, and in the document heading. It prints a short status every 15 seconds. Press `Ctrl+C` to stop the watcher.
+
+### Switching meetings
+
+Starting with v4.5.3, a newly joined meeting can start its own transcript even
+while the previous call's window remains open or on hold. The watcher tracks
+one selected meeting and its associated caption source instead of merging all
+visible meeting windows. On-hold caption status messages are excluded from
+spoken text. If simultaneous meetings cannot be distinguished from the
+available accessibility information, capture waits for a clear source.
+
+Returning to a previously held meeting starts another transcript segment once
+the watcher detects the resumed call. Earlier segments stay saved. If two
+segments would have the same filename, a numeric suffix keeps both files.
+
+Previously merged transcripts are left unchanged. Captions that Teams did not
+expose cannot be recovered by the update.
 
 Choose a file or change the timeout:
 

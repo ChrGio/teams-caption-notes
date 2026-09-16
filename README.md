@@ -19,8 +19,9 @@ You do not need GitHub's **Source code** ZIP.
 2. Find the app icon near the Windows clock; check the hidden-icons arrow if needed.
 3. Join a Teams meeting and turn on live captions. The app's **Set up Teams captions…** option can
    help enable them for the current meeting or future meetings, after confirmation.
-4. The app watches for meetings and saves a separate transcript
-   for each one. Right-click the tray icon → **Open transcripts** to find your notes.
+4. The app watches for meetings and saves separate transcripts when you switch
+   calls. Returning to a held meeting can start another segment. Right-click
+   the tray icon → **Open transcripts** to find your notes.
 
 The packaged app starts with Windows **at sign-in** by default. Uncheck
 **Start with Windows (at sign-in)** in the tray menu to turn that off.
@@ -28,7 +29,8 @@ The executable is unsigned; your organization's IT approval may be required.
 
 ## What it does
 
-- **One file per meeting** — meeting title and capture-start time in the filename.
+- **Separate meeting transcripts** — meeting title and capture-start time in the
+  filename; resumed calls can have another segment.
 - **Readable caption history** — merges rolling text updates and reduces repeated
   lines; preserves speaker labels when Teams exposes them.
 - **Built-in and pop-out captions** — supports captions inside the meeting window
@@ -77,7 +79,7 @@ Microsoft sign-in, permission, and licensing requirements.
 - [User guide: caption setup, tray controls, updates, and troubleshooting](docs/USER_GUIDE.md)
 - [Browse notes and optionally collect Teams chats](docs/CHAT_NOTES_SETUP.md)
 - [Optional direct Microsoft 365 Copilot summaries](docs/COPILOT_SETUP.md)
-- [What's new in v4.5.2](docs/RELEASE_NOTES-v4.5.2.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
+- [What's new in v4.5.3](docs/RELEASE_NOTES-v4.5.3.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
 - [Run from source, test, or build the EXE](docs/DEVELOPMENT.md)
 - [Report a bug](https://github.com/ChrGio/teams-caption-notes/issues) — remove meeting
   text, account details, and other sensitive data before sharing diagnostics.

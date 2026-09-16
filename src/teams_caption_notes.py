@@ -22,7 +22,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Sequence
 from caption_journal import CaptionJournal
-from meeting_presence import COMPACT_TITLES, MeetingPresence, WindowIdentity, native_window_name
+from meeting_presence import (COMPACT_TITLES, MeetingPresence, MeetingSelector,
+                              MeetingSurface, WindowIdentity, native_window_name)
 
 
 LOG = logging.getLogger("teams-caption-notes")
@@ -34,6 +35,7 @@ NOISE = re.compile(
     re.I,
 )
 CAPTION_VIEWER_TITLE = re.compile(r"^\s*captions?\s*(?:\||$)", re.I)
+HOLD_STATUS = re.compile(r"^live captions? (?:are |is )?paused while on hold[.!]?$", re.I)
 
 
 @dataclass(frozen=True)
@@ -63,7 +65,7 @@ def normalized(value: str) -> str:
 def parse_caption(value: str) -> tuple[str | None, str] | None:
     """Parse common Teams accessibility-name caption shapes."""
     value = clean_text(value)
-    if not value or len(value) < 2 or NOISE.fullmatch(value):
+    if not value or len(value) < 2 or NOISE.fullmatch(value) or HOLD_STATUS.fullmatch(value):
         return None
 
     lines = value.splitlines()
@@ -73,11 +75,15 @@ def parse_caption(value: str) -> tuple[str | None, str] | None:
     if len(lines) >= 2 and is_probable_speaker_label(lines[0]):
         speaker = lines[0].rstrip(":")
         text = " ".join(lines[1:]).strip()
-        if text and not NOISE.fullmatch(text):
+        if text and not NOISE.fullmatch(text) and not HOLD_STATUS.fullmatch(text):
             return speaker, text
+        if HOLD_STATUS.fullmatch(text):
+            return None
 
     match = re.match(r"^([^:\n]{1,80}):\s+(.+)$", value, re.S)
     if match and is_probable_speaker_label(match.group(1)):
+        if HOLD_STATUS.fullmatch(match.group(2).strip()):
+            return None
         return match.group(1).strip(), match.group(2).strip()
 
     return None, value.replace("\n", " ")
@@ -424,7 +430,9 @@ def authoritative_caption_sources(
         if CAPTION_VIEWER_TITLE.search(clean_text(str(safe_attr(item[0], "Name", "") or "")))
     ]
     if viewers:
-        return viewers
+        # The caller scopes these to one selected meeting. Multiple viewers
+        # still cannot be distinguished reliably, so do not combine them.
+        return viewers if len(viewers) == 1 else []
     if not active_data:
         return []
 
@@ -439,6 +447,22 @@ def authoritative_caption_sources(
         return score
 
     return [max(active_data, key=caption_score)]
+
+
+def meeting_is_held(window: object, nodes) -> bool:
+    """Recognize explicit call status, not absence of speech or a quiet UI."""
+    if not meeting_title_from_window(str(safe_attr(window, "Name", "") or "")):
+        return False
+    for control, _, _ in nodes:
+        if bool(safe_attr(control, "IsOffscreen", False)):
+            continue
+        name = clean_text(str(safe_attr(control, "Name", "") or ""))
+        if HOLD_STATUS.fullmatch(name):
+            return True
+        if (safe_attr(control, "ControlTypeName", "") == "ButtonControl"
+                and normalized(name) in {"resume", "resume call", "resume meeting"}):
+            return True
+    return False
 
 
 def is_active_meeting_window(
@@ -503,10 +527,17 @@ def session_destination(
     if requested is None:
         safe_title = safe_filename_component(meeting_title)
         folder = transcript_dir or application_dir() / "transcripts"
-        return folder / f"{safe_title}-{started:%Y%m%d-%H%M%S}.md"
-    if session_number == 1:
-        return requested
-    return requested.with_name(f"{requested.stem}-{started:%Y%m%d-%H%M%S}{requested.suffix}")
+        candidate = folder / f"{safe_title}-{started:%Y%m%d-%H%M%S}.md"
+    elif session_number == 1:
+        candidate = requested
+    else:
+        candidate = requested.with_name(f"{requested.stem}-{started:%Y%m%d-%H%M%S}{requested.suffix}")
+    destination = candidate
+    suffix = 2
+    while destination.exists():
+        destination = candidate.with_name(f"{candidate.stem}-{suffix}{candidate.suffix}")
+        suffix += 1
+    return destination
 
 
 def render_markdown(transcript: Transcript, meeting_title: str, started: str) -> str:
@@ -669,6 +700,7 @@ def run(
     scan_failures = 0
     last_scan_warning = 0.0
     presence = MeetingPresence()
+    selector = MeetingSelector()
     visibility_state = "active"
     emit("watching", "Watching Microsoft Teams. Capture starts when you join a meeting and stops when you leave.")
     emit("watching", "Keep Teams live captions enabled. Press Ctrl+C to stop the watcher.")
@@ -695,7 +727,8 @@ def run(
                 active_data = [
                     (window, nodes)
                     for window, nodes in window_data
-                    if not bool(safe_attr(window, "IsOffscreen", False)) and is_active_meeting_window(window, nodes)
+                    if not bool(safe_attr(window, "IsOffscreen", False))
+                    and (is_active_meeting_window(window, nodes) or meeting_is_held(window, nodes))
                 ]
             except ctypes.COMError:
                 scan_failures += 1
@@ -704,6 +737,7 @@ def run(
                 if transcript is not None:
                     presence.uncertain()
                     persist_transcript(final=True)
+                selector.uncertain()
                 delay = min(30.0, 2.0 ** min(scan_failures, 5))
                 if scan_failures == 1 or now - last_scan_warning >= 60:
                     LOG.warning("UI Automation scan failed; retrying in %.0fs (attempt %d)",
@@ -717,18 +751,22 @@ def run(
                     time.sleep(delay)
                 continue
             now = time.monotonic()
+            recovered_scan = bool(scan_failures)
             if scan_failures:
                 # Start the leave grace period afresh after an outage.
                 if transcript is not None:
                     presence.uncertain()
                 emit("scan_recovered", f"Windows caption scan recovered after {scan_failures} failed attempt(s).")
                 scan_failures = 0
-                if active_data and transcript is not None:
-                    emit("recording", "Caption scanning resumed for the current meeting.")
 
-            active_identities = [meeting_identity(window) for window, _ in active_data]
-            if transcript is not None and presence.different_meeting(active_identities):
-                if not finish_meeting("A different named meeting was detected"):
+            observed_identities = [meeting_identity(window) for window in windows]
+            selector.observe_retired(observed_identities, known_meeting_window_open, now, args.leave_grace)
+            surfaces = [MeetingSurface(meeting_identity(window),
+                                       bool(CAPTION_VIEWER_TITLE.search(str(safe_attr(window, "Name", "") or ""))),
+                                       meeting_is_held(window, nodes)) for window, nodes in active_data]
+            selection = selector.select(surfaces, observed_identities)
+            if transcript is not None and selection.changed:
+                if not finish_meeting("A different meeting was selected; continuing in a separate transcript"):
                     if stop_event is not None:
                         stop_event.wait(args.interval)
                     else:
@@ -736,6 +774,15 @@ def run(
                     continue
                 if args.exit_after_meeting:
                     return 0
+
+            # Ownership changes only after the old transcript has been saved.
+            selector.commit(selection)
+            selected_ids = {surface.identity for surface in selection.surfaces}
+            active_data = [(window, nodes) for window, nodes in active_data
+                           if meeting_identity(window) in selected_ids]
+            active_identities = [meeting_identity(window) for window, _ in active_data]
+            if recovered_scan and active_data and transcript is not None and not selection.held:
+                emit("recording", "Caption scanning resumed for the current meeting.")
 
             if active_data:
                 if transcript is None:
@@ -757,12 +804,19 @@ def run(
                     emit("meeting_started", f"Meeting joined; capture started: {destination.resolve()}")
 
                 presence.remember(active_identities)
-                if visibility_state != "active":
+                if visibility_state != "active" and not selection.held:
                     emit("meeting_visibility_restored", "Meeting controls visible again; continuing the same transcript.")
-                visibility_state = "active"
+                visibility_state = "active" if not selection.held else visibility_state
 
             presence_state = "active"
-            if transcript is not None and not active_data:
+            if selection.ambiguous or (transcript is not None and selection.held):
+                presence.uncertain()
+                state = "held" if selection.held else "ambiguous"
+                if visibility_state != state:
+                    emit("meeting_visibility_lost", "Meeting is on hold; caption capture paused."
+                         if selection.held else "Multiple meeting surfaces are ambiguous; waiting without combining captions.")
+                    visibility_state = state
+            elif transcript is not None and not active_data:
                 presence_state = presence.observe([meeting_identity(w) for w in windows],
                                                   known_meeting_window_open, now, args.leave_grace)
                 if presence_state != visibility_state:
@@ -775,10 +829,11 @@ def run(
 
             changed = False
             # A toolbar can disappear while caption text remains accessible.
-            caption_data = active_data or [
+            caption_data = [] if selection.held or selection.ambiguous else active_data or [
                 (window, nodes) for window, nodes in window_data
                 if transcript is not None and not bool(safe_attr(window, "IsOffscreen", False))
-                and any(old.matches(meeting_identity(window)) for old in presence.known)
+                and selector.allow_caption(meeting_identity(window))
+                and not meeting_is_held(window, nodes)
             ]
             for window, nodes in authoritative_caption_sources(caption_data):
                 window_title = clean_text(str(safe_attr(window, "Name", "") or ""))
@@ -807,12 +862,16 @@ def run(
                     else:
                         time.sleep(args.interval)
                     continue
+                selector.end_session()
                 last_status = now
                 if args.exit_after_meeting:
                     return 0
 
             if not changed and args.status_interval and now - last_status >= args.status_interval:
-                if transcript is not None:
+                if selection.ambiguous or selection.held:
+                    emit("meeting_visibility_lost", "Meeting is on hold; caption capture paused."
+                         if selection.held else "Multiple meeting surfaces are ambiguous; waiting without combining captions.")
+                elif transcript is not None:
                     if transcript.entries:
                         emit("recording", "No new captions since the last status check; capture is still running.")
                     else:

@@ -48,6 +48,19 @@ class QuietTrayTests(unittest.TestCase):
         app.icon.remove_notification.assert_called_once()
         self.assertTrue(TrayApp().popups_hidden())
 
+    def test_held_and_ambiguous_status_keeps_capture_owned_and_quiet(self):
+        app = TrayApp()
+        app.capture_event("meeting_started", "test")
+        for message in (
+            "Meeting is on hold; caption capture paused.",
+            "Multiple meeting surfaces are ambiguous; waiting without combining captions.",
+        ):
+            app.capture_event("meeting_visibility_lost", message)
+            self.assertEqual(app._state, "uncertain")
+            self.assertEqual(app._status, message)
+            self.assertTrue(app._meeting_active)
+        app.icon.notify.assert_not_called()
+
     def test_failed_save_does_not_lie_about_setting_or_show_popup(self):
         app = TrayApp()
         with patch("tray_settings.save", side_effect=PermissionError("locked")), patch("teams_caption_tray.logging.exception"):

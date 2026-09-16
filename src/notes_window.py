@@ -41,7 +41,7 @@ class NotesWindow:
         self.chats = []
         self.rows = []
         self.buttons = []
-        root.title("Teams Caption Notes v4.5.2 — Chats and notes")
+        root.title("Teams Caption Notes v4.5.3 — Chats and notes")
         root.geometry("1000x680")
         root.minsize(820, 560)
         root.protocol("WM_DELETE_WINDOW", self.close)
