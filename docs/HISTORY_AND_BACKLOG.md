@@ -5,6 +5,23 @@
 Older planning sections are historical. Current capabilities and installation
 instructions are on the main page and in the user guide.
 
+## Version 4.5.5
+
+- Excludes the Teams sharing control bar from meeting selection and caption sources.
+- Keeps an initially provisional meeting window in the same transcript when its real title appears.
+- Retains compact-view continuity and silent caption-health statuses from v4.5.4.
+
+See the [v4.5.5 release notes](RELEASE_NOTES-v4.5.5.md).
+
+## Version 4.5.4
+
+- Keeps a transcript open through recognized compact-view transitions during screen sharing.
+- Pauses ambiguous same-name window transitions instead of immediately splitting files.
+- Adds caption-health tray statuses, distinguishing detected meetings from captured speech.
+- Excludes known empty-caption setup labels and adds source-selection diagnostics.
+
+See the [v4.5.4 release notes](RELEASE_NOTES-v4.5.4.md).
+
 ## Version 4.5.3
 
 - Separates newly joined meetings even when the previous meeting window remains open.

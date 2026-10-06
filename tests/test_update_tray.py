@@ -106,7 +106,7 @@ class TrayUpdateTests(unittest.TestCase):
         self.app.capture_event("meeting_started", "test meeting")
         self.app.capture_event("meeting_visibility_lost", "not visible")
         self.app.capture_event("scan_recovered", "watching")
-        self.assertEqual(self.app._state, "watching")
+        self.assertEqual(self.app._state, "uncertain")
         self.run_check()
         self.download.assert_not_called()
         self.assert_not_installed()

@@ -26,7 +26,7 @@ import app_update
 import windows_clipboard
 
 
-APP_VERSION = "4.5.3"
+APP_VERSION = "4.5.5"
 APP_NAME = f"Teams Caption Notes v{APP_VERSION}"
 LOG_PATH = capture.application_dir() / "teams-caption-notes.log"
 COPILOT_CONFIG_PATH = capture.application_dir() / "copilot-config.json"
@@ -199,28 +199,41 @@ class TrayApp:
                 if event == "meeting_started" and self._installing:
                     self._update_capture_started.set()
         if event == "meeting_started":
-            self.set_status("recording", "Meeting detected — capturing captions")
-            self.notify("Caption capture started", message)
+            self.set_status("uncertain", "Meeting detected — waiting for new captions")
+            self.notify("Meeting detected", message)
         elif event == "caption":
-            self.set_status("recording", "Capturing meeting captions")
-        elif event == "recording":
+            self.set_status("recording", "Receiving new meeting captions")
+        elif event == "captions_receiving":
             self.set_status("recording", message)
+        elif event in ("captions_waiting", "captions_unavailable"):
+            # Feed-health changes are silent even when other balloons are on.
+            self.set_status("uncertain", message)
+        elif event == "recording":
+            # Historical heartbeat events only establish session ownership,
+            # not that the caption feed is producing speech. Keep its status.
+            pass
         elif event == "scan_retrying":
             self.set_status("error", "Windows scan unavailable — retrying automatically")
         elif event == "scan_recovered":
-            self.set_status("watching", "Windows scan recovered — watching Teams")
+            if self._meeting_active:
+                self.set_status("uncertain", "Windows scan recovered — waiting for new captions")
+            else:
+                self.set_status("watching", "Windows scan recovered — watching Teams")
         elif event == "meeting_visibility_lost":
             self.set_status("uncertain", message)
         elif event == "meeting_visibility_restored":
-            self.set_status("recording", "Meeting visible — continuing the same transcript")
+            self.set_status("uncertain", "Meeting visible — waiting for new captions in the same transcript")
         elif event == "meeting_ended":
             self.set_status("watching", "Meeting saved — waiting for another")
             self.notify("Transcript saved", message)
         elif event == "write_blocked":
-            self.set_status("recording", "Transcript locked — capture continues in memory")
+            self.set_status("uncertain", "Transcript locked — unsaved captions retained in memory")
             self.notify("Transcript file is open", message)
         elif event == "write_recovered":
-            self.set_status("watching", "Recovery transcript saved")
+            if self._meeting_active:
+                self.set_status("uncertain", "Recovery transcript saved — waiting for new captions")
+            else:
+                self.set_status("watching", "Recovery transcript saved")
             self.notify("Recovery transcript saved", message)
         elif event == "watching":
             self.set_status("watching", "Waiting for a Teams meeting")
@@ -472,7 +485,8 @@ class TrayApp:
     def _summary_worker(self, transcript_path: Path, meeting_title: str) -> None:
         try:
             try:
-                self.set_status("recording", "Copilot is summarizing the transcript")
+                # Green is reserved for received captions, not AI activity.
+                self.set_status(self._state if self._meeting_active else "watching", "Copilot is summarizing the transcript")
                 output = copilot_summary.summarize_transcript(transcript_path, meeting_title, COPILOT_CONFIG_PATH)
                 logging.info("Copilot summary saved to %s", output)
                 self.set_status("watching", "Copilot summary saved")

@@ -53,7 +53,7 @@ py -m venv .venv
 The standalone tray app also offers the optional caption setup helper described
 below. Python command-line capture does not change Teams settings automatically.
 
-The watcher starts a new timestamped transcript when Teams' meeting controls appear. After the tracked meeting windows disappear, it waits through an eight-second confirmation period before finalizing and waiting for the next meeting. A minimized or temporarily unreadable tracked meeting window keeps the same transcript open; a stale post-call window can delay finalization until closed. The meeting name is included in the filename, such as `Team_standup-20260908-103000.md`, and in the document heading. It prints a short status every 15 seconds. Press `Ctrl+C` to stop the watcher.
+The watcher starts a new timestamped transcript when Teams' meeting controls appear. After the tracked meeting windows disappear, it waits through an eight-second confirmation period before finalizing and waiting for the next meeting. A minimized or temporarily unreadable tracked meeting window keeps the same transcript open; a stale post-call window can delay finalization until closed. The meeting name is included in the filename, such as `Team_standup-20260908-103000.md`, and in the document heading. Caption-health changes are reported as they happen; waiting-for-meeting status is periodically repeated in console mode. Press `Ctrl+C` to stop the watcher.
 
 ### Switching meetings
 
@@ -70,6 +70,41 @@ segments would have the same filename, a numeric suffix keeps both files.
 
 Previously merged transcripts are left unchanged. Captions that Teams did not
 expose cannot be recovered by the update.
+
+### Screen sharing and compact view
+
+Version 4.5.5 excludes Teams' **Sharing control bar** from both meeting selection
+and caption extraction, even if that toolbar exposes meeting controls. It also
+treats an initial **Meeting join** title as provisional: when the same native
+window receives its real title, capture stays in the same transcript. This is not
+permission to combine differently named calls or unrelated window identities.
+If capture begins before the real title is available, the filename keeps its
+original generic **Meeting** name to avoid moving an active file; the document
+heading updates when the real name becomes available.
+
+Version 4.5.4 recognizes a new compact-view window associated with an existing
+meeting as continuity evidence, not permission to read an unknown caption source.
+It keeps the transcript open while that compact view remains and resumes when
+the original meeting's caption source becomes readable again. An already-owned
+detached caption viewer can continue capturing during this transition.
+
+If two same-name meeting windows cannot be distinguished safely, capture pauses
+rather than splitting immediately or combining speech. Restore the original
+meeting window and captions. A genuinely different named meeting still gets a
+separate transcript. Closing all tracked meeting/compact windows allows the
+normal end-of-meeting confirmation to finish.
+
+The tray is amber when captions are unavailable or waiting for speech, and green
+after new text is actually captured. After 60 seconds without new text, it shows
+that the meeting may be quiet or captions unavailable; silence is not treated as
+proof of a failure. These health updates do not show pop-ups. Setup labels such
+as the empty-caption language prompt are no longer saved as speech.
+
+This does not record audio, force Teams windows open, or recover missing speech.
+Keep captions accessible during screen sharing. The log now includes window IDs,
+visibility and source-selection reasons; the new diagnostic fields use a hashed
+meeting-title key instead of names or caption text. Other existing log entries
+still include transcript paths and captured speech, so review logs before sharing.
 
 Choose a file or change the timeout:
 
@@ -127,7 +162,7 @@ Starting with v4.5.2:
 
 For caption display tips, screen sharing, and the chat-aggregation investigation, see [version history and backlog](HISTORY_AND_BACKLOG.md).
 
-`TeamsCaptionNotes.exe` runs in the Windows notification area and does not require Python on the destination computer. Its icon is blue while waiting, green while capturing, amber while meeting visibility is uncertain, gray when stopped, and red after an error or while retrying a failed scan. Right-click it to start or stop watching, open transcripts, view the diagnostic log, or exit. Double-clicking the icon opens the transcript folder.
+`TeamsCaptionNotes.exe` runs in the Windows notification area and does not require Python on the destination computer. Its icon is blue while waiting for a meeting, green after recently receiving new captions, amber while captions are unavailable, stale, or awaiting speech, gray when stopped, and red after an error or while retrying a failed scan. Right-click it to start or stop watching, open transcripts, view the diagnostic log, or exit. Double-clicking the icon opens the transcript folder.
 
 If a transcript is open in an application that locks the file, capture continues in memory and retries automatically. If the file remains locked when the meeting ends, the app writes a timestamped `-recovered-` copy beside it, falling back to `%LOCALAPPDATA%\Teams Caption Notes\transcripts` if necessary.
 

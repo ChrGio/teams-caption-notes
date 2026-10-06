@@ -95,15 +95,15 @@ class SelectionIntegrationTests(unittest.TestCase):
         self.assertIn("after hold", documents[0])
         self.assertNotIn("must not capture", documents[0])
 
-    def test_simultaneous_same_name_calls_exclude_unassignable_detached_viewer(self):
+    def test_simultaneous_same_name_calls_pause_without_splitting_or_combining(self):
         a, b = call("Standup", 100, "first call"), call("Standup", 200, "second call")
         viewer = call("Standup", 300, "ambiguous viewer", viewer=True)
         documents, events, _ = self.outputs([[a], [a, viewer, b], [b, viewer, a],
                                             [viewer, b], [], []])
-        self.assertEqual(events.count("meeting_started"), 2)
+        self.assertEqual(events.count("meeting_started"), 1)
+        self.assertEqual(len(documents), 1)
         self.assertIn("first call", documents[0])
         self.assertNotIn("second call", documents[0])
-        self.assertIn("second call", documents[1])
         self.assertNotIn("ambiguous viewer", "".join(documents))
 
     def test_late_stale_viewer_does_not_steal_back_after_old_main_disappears(self):
@@ -114,16 +114,16 @@ class SelectionIntegrationTests(unittest.TestCase):
         self.assertEqual(len(documents), 2)
         self.assertNotIn("stale detached", "".join(documents))
 
-    def test_hidden_same_name_old_main_does_not_lend_its_viewer_to_new_call(self):
+    def test_hidden_same_name_old_main_pauses_instead_of_lending_viewer_or_splitting(self):
         a, b = call("Standup", 100, "first call"), call("Standup", 200, "second call")
         viewer = call("Standup", 300, "first viewer", viewer=True)
         hidden_a = call("Standup", 100, "hidden old call")
         hidden_a.IsOffscreen = True
         documents, events, _ = self.outputs([[a, viewer], [hidden_a, b, viewer], [b, viewer], [], []])
-        self.assertEqual(events.count("meeting_started"), 2)
+        self.assertEqual(events.count("meeting_started"), 1)
+        self.assertEqual(len(documents), 1)
         self.assertIn("first viewer", documents[0])
-        self.assertIn("second call", documents[1])
-        self.assertNotIn("first viewer", documents[1])
+        self.assertNotIn("second call", documents[0])
 
     def test_compact_with_associated_detached_viewer_preserves_capture(self):
         a = call("Alpha", 100, "builtin")

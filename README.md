@@ -36,7 +36,8 @@ The executable is unsigned; your organization's IT approval may be required.
 - **Built-in and pop-out captions** — supports captions inside the meeting window
   and Teams' detached caption viewer.
 - **Quiet tray controls** — status colors show waiting, capture, and recovery.
-  Capture-start pop-ups are hidden by default.
+  Amber indicates captions are unavailable or no new text has arrived; green
+  indicates recently captured speech. Capture-start pop-ups are hidden by default.
 - **Notes and AI handoff** — browse/search saved notes and copy the latest or
   selected transcript with a summary prompt for ChatGPT or Copilot.
 - **Recovery and updates** — retries temporary accessibility/file errors, keeps
@@ -64,6 +65,12 @@ Keep this folder when updating. The tray's **Open log** command opens the log;
 Captions must be enabled and accessible to Windows. Keep Teams and its caption
 source visible for the best results. The app can preserve a meeting session when
 its window is minimized, but **cannot recover caption text Teams does not expose**.
+During screen sharing, a recognized compact-view transition keeps the same
+transcript open. Restore the meeting window and captions if the tray reports
+**Captions unavailable**. Ambiguous meeting windows pause capture instead of
+combining their text or repeatedly creating files.
+The Teams sharing toolbar is not treated as a separate meeting. A temporary
+join-window title can change to the real meeting name without splitting capture.
 Caption wording, speaker labels, and meeting detection can be imperfect.
 
 Tell participants and follow your organization's rules before saving or sharing
@@ -79,7 +86,7 @@ Microsoft sign-in, permission, and licensing requirements.
 - [User guide: caption setup, tray controls, updates, and troubleshooting](docs/USER_GUIDE.md)
 - [Browse notes and optionally collect Teams chats](docs/CHAT_NOTES_SETUP.md)
 - [Optional direct Microsoft 365 Copilot summaries](docs/COPILOT_SETUP.md)
-- [What's new in v4.5.3](docs/RELEASE_NOTES-v4.5.3.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
+- [What's new in v4.5.5](docs/RELEASE_NOTES-v4.5.5.md) · [Version history and backlog](docs/HISTORY_AND_BACKLOG.md)
 - [Run from source, test, or build the EXE](docs/DEVELOPMENT.md)
 - [Report a bug](https://github.com/ChrGio/teams-caption-notes/issues) — remove meeting
   text, account details, and other sensitive data before sharing diagnostics.

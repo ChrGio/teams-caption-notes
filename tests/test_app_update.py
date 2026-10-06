@@ -95,9 +95,22 @@ class ReleaseTests(unittest.TestCase):
 
     def test_draft_and_prerelease_are_ignored_for_current_patch(self):
         for key in ("draft", "prerelease"):
-            item = metadata(release(version="4.5.3"))
+            item = metadata(release(version="4.5.5"))
             item[key] = True
             self.assertIsNone(self.check(item))
+
+    def test_4_5_4_updates_previous_patch_but_is_not_reoffered_or_downgraded(self):
+        patch_release = release(version="4.5.4")
+        self.assertEqual(self.check(metadata(patch_release), "4.5.3"), patch_release)
+        self.assertIsNone(self.check(metadata(patch_release), "4.5.4"))
+        self.assertIsNone(self.check(metadata(release(version="4.5.3")), "4.5.4"))
+
+    def test_4_5_5_updates_previous_patch_but_is_not_reoffered_or_downgraded(self):
+        patch_release = release(version="4.5.5")
+        self.assertEqual(self.check(metadata(patch_release), "4.5.4"), patch_release)
+        self.assertEqual(self.check(metadata(patch_release), "4.5.3"), patch_release)
+        self.assertIsNone(self.check(metadata(patch_release), "4.5.5"))
+        self.assertIsNone(self.check(metadata(release(version="4.5.4")), "4.5.5"))
 
     def test_invalid_tags_are_rejected(self):
         for tag in ("v4.5-beta", "v4.5;calc", "4.5", "v4.5/../../x", None):

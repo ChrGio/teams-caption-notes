@@ -27,7 +27,7 @@ class QuietTrayTests(unittest.TestCase):
         app = TrayApp()
         self.assertTrue(app.popups_hidden())
         app.capture_event("meeting_started", "test")
-        self.assertEqual(app._state, "recording")
+        self.assertEqual(app._state, "uncertain")
         app.capture_event("meeting_ended", "test")
         self.assertEqual(app._state, "watching")
         app.capture_event("scan_retrying", "test")
